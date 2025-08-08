@@ -262,15 +262,9 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestre
 			return types.CoinIndicator{}, false
 		}
 		progressLogger.Printf("BUY 触发: %s %.2f", symbol, price) // 👈
-		//这里对通过一层的代币增加 死叉传递理论（1分钟）
-		_, _, closesM1, err := utils.GetKlinesByAPI(client, symbol, "1m", klinesCount)
-		if err != nil || len(opens) < 2 || len(closes) < 2 {
-			return types.CoinIndicator{}, false
-		}
-		EMA25M1 := utils.CalculateEMA(closesM1, 25)
-		EMA50M1 := utils.CalculateEMA(closesM1, 50)
-		if ema25M5 > ema50M5 && EMA25M1[len(EMA25M1)-1] > EMA50M1[len(EMA50M1)-1] && UpMACD {
-			//5分钟金叉(1分钟金叉)MACD趋向
+
+		if ema25M5 > ema50M5 && UpMACD {
+			//5分钟金叉，MACD趋向
 			status = "View"
 		} else {
 			status = "Wait"
@@ -288,14 +282,9 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestre
 			return types.CoinIndicator{}, false
 		}
 		progressLogger.Printf("SELL 触发: %s %.2f", symbol, price) // 👈
-		_, _, closesM1, err := utils.GetKlinesByAPI(client, symbol, "1m", klinesCount)
-		if err != nil || len(opens) < 2 || len(closes) < 2 {
-			return types.CoinIndicator{}, false
-		}
-		EMA25M1 := utils.CalculateEMA(closesM1, 25)
-		EMA50M1 := utils.CalculateEMA(closesM1, 50)
-		if ema25M5 < ema50M5 && EMA25M1[len(EMA25M1)-1] < EMA50M1[len(EMA50M1)-1] && DownMACD {
-			//5分钟死叉，1分钟死叉,MACD
+
+		if ema25M5 < ema50M5 && DownMACD {
+			//5分钟死叉，MACD
 			status = "View"
 		} else {
 			status = "Wait"
