@@ -182,7 +182,7 @@ func runScan(client *futures.Client) error {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			ind, ok := analyseSymbol(client, sym, "15m", db, betrend)
+			ind, ok := analyseSymbol(client, sym, "15m", db)
 			if ok {
 				resMu.Lock()
 				results = append(results, ind)
@@ -210,10 +210,10 @@ func runScan(client *futures.Client) error {
 
 /* ====================== 单币分析 ====================== */
 
-func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestrend types.BETrend) (types.CoinIndicator, bool) {
+func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types.CoinIndicator, bool) {
 
-	_, opens, closes, err := utils.GetKlinesByAPI(client, symbol, tf, klinesCount)
-	if err != nil || len(opens) < 2 || len(closes) < 2 {
+	_, _, closes, err := utils.GetKlinesByAPI(client, symbol, tf, klinesCount)
+	if err != nil || len(closes) < 2 {
 		return types.CoinIndicator{}, false
 	}
 
@@ -224,8 +224,6 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestre
 	priceGT_EMA25 := utils.GetPriceGT_EMA25FromDB(db, symbol) //1H 价格在25EMA上方
 
 	//动能模型
-	//当在1小时下，且超买 15分钟在下，判定为空
-	//当在1小时上，且超卖 15分钟在上，判定为多
 	var up, down bool
 	up = priceGT_EMA25 && ema25M15 > ema50M15    //1H GT +15分钟金叉
 	down = !priceGT_EMA25 && ema25M15 < ema50M15 //1H !GT + 15分钟死叉
@@ -237,37 +235,26 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestre
 	sellCond := srsi15M > 65
 
 	//MACD模型
-	UpMACD := utils.IsAboutToGoldenCross(closes, 6, 13, 5)
-	DownMACD := utils.IsAboutToDeadCross(closes, 6, 13, 5)
+	UpMACDM15 := utils.IsAboutToGoldenCross(closes, 6, 13, 5)
+	DownMACDM15 := utils.IsAboutToDeadCross(closes, 6, 13, 5)
 
 	isBTCOrETH := symbol == "BTCUSDT" || symbol == "ETHUSDT"
 
-	//BE专属
-	var isBE, BEBelowEMA25, BEAboveEMA25 bool
-	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
-		isBE = true
-		BEBelowEMA25 = price < ema25M1H //1小时之下
-		BEAboveEMA25 = price > ema25M1H //1小时之上
-	}
-	//1.猛烈下跌
-	BEDOWN := isBE && BEBelowEMA25 && ema25M15 < ema50M15 && ema25M5 < ema50M5
-	//2.猛烈上涨
-	BEUP := isBE && BEAboveEMA25 && ema25M15 > ema50M15 && ema25M5 > ema50M5
+	// BE 专属
+	isBE := isBTCOrETH
+	BEBelowEMA25 := price < ema25M1H
+	BEAboveEMA25 := price > ema25M1H
 
-	var status string
-	switch {
-	case up && buyCond:
+	// ===== 模型1优先级最高 =====
+	if up && buyCond {
 		if !isBTCOrETH {
-			// 只做多 BTC、ETH其他跳过
 			return types.CoinIndicator{}, false
 		}
-		progressLogger.Printf("BUY 触发: %s %.2f", symbol, price) // 👈
+		progressLogger.Printf("BUY 触发: %s %.2f", symbol, price)
 
-		if ema25M5 > ema50M5 && UpMACD {
-			//5分钟金叉，MACD趋向
+		status := "Wait"
+		if ema25M5 > ema50M5 && UpMACDM15 {
 			status = "View"
-		} else {
-			status = "Wait"
 		}
 		return types.CoinIndicator{
 			Symbol:       symbol,
@@ -275,59 +262,62 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB, bestre
 			TimeInternal: tf,
 			StochRSI:     srsi15M,
 			Status:       status,
-			Operation:    "Buy"}, true
-	case down && sellCond:
-		if !isBTCOrETH {
-			// 只做空 BTC、ETH其他跳过
-			return types.CoinIndicator{}, false
-		}
-		progressLogger.Printf("SELL 触发: %s %.2f", symbol, price) // 👈
-
-		if ema25M5 < ema50M5 && DownMACD {
-			//5分钟死叉，MACD
-			status = "View"
-		} else {
-			status = "Wait"
-		}
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       status,
-			Operation:    "Sell"}, true
-	case BEUP:
-		progressLogger.Printf("View 触发: %s %.2f", symbol, price) // 👈
-		if UpMACD {
-			status = "ViewBE"
-		} else {
-			return types.CoinIndicator{}, false
-		}
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       status,
-			Operation:    "ViewBE"}, true
-	case BEDOWN:
-		progressLogger.Printf("View 触发: %s %.2f", symbol, price) // 👈
-		if DownMACD {
-			status = "ViewBE"
-		} else {
-			return types.CoinIndicator{}, false
-		}
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       status,
-			Operation:    "ViewBE"}, true
-
-	default:
-		return types.CoinIndicator{}, false
+			Operation:    "Buy",
+		}, true
 	}
+
+	if down && sellCond {
+		if !isBTCOrETH {
+			return types.CoinIndicator{}, false
+		}
+		progressLogger.Printf("SELL 触发: %s %.2f", symbol, price)
+
+		status := "Wait"
+		if ema25M5 < ema50M5 && DownMACDM15 {
+			status = "View"
+		}
+		return types.CoinIndicator{
+			Symbol:       symbol,
+			Price:        price,
+			TimeInternal: tf,
+			StochRSI:     srsi15M,
+			Status:       status,
+			Operation:    "Sell",
+		}, true
+	}
+
+	// ===== 模型2（仅模型1未触发时才执行） =====
+	if isBE && BEAboveEMA25 && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 {
+		progressLogger.Printf("ViewBE UP 触发: %s %.2f", symbol, price)
+		_, _, closesM5, err := utils.GetKlinesByAPI(client, symbol, "5m", klinesCount)
+		if err != nil || len(closesM5) < 2 {
+			return types.CoinIndicator{}, false
+		}
+		if utils.IsAboutToGoldenCross(closesM5, 6, 13, 5) {
+			return types.CoinIndicator{
+				Symbol:       symbol,
+				Price:        price,
+				TimeInternal: tf,
+				StochRSI:     srsi15M,
+				Status:       "ViewBE",
+				Operation:    "ViewBE",
+			}, true
+		}
+	}
+
+	if isBE && BEBelowEMA25 && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 {
+		progressLogger.Printf("ViewBE DOWN 触发: %s %.2f", symbol, price)
+		return types.CoinIndicator{
+			Symbol:       symbol,
+			Price:        price,
+			TimeInternal: tf,
+			StochRSI:     srsi15M,
+			Status:       "ViewBE",
+			Operation:    "ViewBE",
+		}, true
+	}
+
+	return types.CoinIndicator{}, false
 }
 
 func setHTTPClient(c *futures.Client) {
