@@ -288,7 +288,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 
 	// ===== 模型2（仅模型1未触发时才执行） =====
 	if isBE && BEAboveEMA25 && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 {
-		progressLogger.Printf("ViewBE UP 触发: %s %.2f", symbol, price)
+		progressLogger.Printf("Fomo UP 触发: %s %.2f", symbol, price)
 		_, _, closesM5, err := utils.GetKlinesByAPI(client, symbol, "5m", klinesCount)
 		if err != nil || len(closesM5) < 2 {
 			return types.CoinIndicator{}, false
@@ -299,21 +299,21 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 				Price:        price,
 				TimeInternal: tf,
 				StochRSI:     srsi15M,
-				Status:       "ViewBE",
-				Operation:    "ViewBE",
+				Status:       "Fomo",
+				Operation:    "Fomo",
 			}, true
 		}
 	}
 
 	if isBE && BEBelowEMA25 && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 {
-		progressLogger.Printf("ViewBE DOWN 触发: %s %.2f", symbol, price)
+		progressLogger.Printf("Fomo DOWN 触发: %s %.2f", symbol, price)
 		return types.CoinIndicator{
 			Symbol:       symbol,
 			Price:        price,
 			TimeInternal: tf,
 			StochRSI:     srsi15M,
-			Status:       "ViewBE",
-			Operation:    "ViewBE",
+			Status:       "Fomo",
+			Operation:    "Fomo",
 		}, true
 	}
 
