@@ -30,14 +30,18 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 		// 添加 betray 趋势信息
 		var trendParts []string
 		if betrend.BTC == "up" {
-			trendParts = append(trendParts, "BTC 做多")
+			trendParts = append(trendParts, "BTC 多")
 		} else if betrend.BTC == "down" {
-			trendParts = append(trendParts, "BTC 做空")
+			trendParts = append(trendParts, "BTC 空")
+		} else if betrend.BTC == "range" {
+			trendParts = append(trendParts, "BTC 乱")
 		}
 		if betrend.ETH == "up" {
-			trendParts = append(trendParts, "ETH 做多")
+			trendParts = append(trendParts, "ETH 多")
 		} else if betrend.ETH == "down" {
-			trendParts = append(trendParts, "ETH 做空")
+			trendParts = append(trendParts, "ETH 空")
+		} else if betrend.ETH == "range" {
+			trendParts = append(trendParts, "ETH 乱")
 		}
 
 		if len(trendParts) > 0 {
