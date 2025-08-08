@@ -242,8 +242,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 
 	// BE 专属
 	isBE := isBTCOrETH
-	BEUp := price < ema25H1 && ema25H1 > ema50H1
-	BEDown := price > ema25H1 && ema25H1 < ema50H1
+	BEUp := price > ema25H1 && ema25H1 > ema50H1
+	BEDown := price < ema25H1 && ema25H1 < ema50H1
 
 	// ===== 模型1优先级最高 =====
 	if up && buyCond {
