@@ -120,3 +120,43 @@ func GetLatestMessages(n int) []SavedMessage {
 	}
 	return res
 }
+
+func SendMessageWaiting(botToken, chatID, text string) error {
+	proxy := "http://127.0.0.1:10809"
+	proxyURL, err := url.Parse(proxy)
+	if err != nil {
+		return fmt.Errorf("解析代理地址失败: %w", err)
+	}
+
+	transport := &http.Transport{
+		Proxy: http.ProxyURL(proxyURL),
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+	}
+	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, botToken)
+
+	message := Message{
+		ChatID: chatID,
+		Text:   text,
+	}
+
+	jsonMessage, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonMessage))
+	if err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received non-200 response: %s", resp.Status)
+	}
+
+	return nil
+}

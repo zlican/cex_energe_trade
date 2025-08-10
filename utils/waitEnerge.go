@@ -51,7 +51,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	}
 	msg := msgBuilder.String()
 	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitList))
-	telegram.SendMessage(waiting_token, chatID, msg)
+	telegram.SendMessageWaiting(waiting_token, chatID, msg)
 }
 
 func waitUntilNext5Min() time.Duration {
