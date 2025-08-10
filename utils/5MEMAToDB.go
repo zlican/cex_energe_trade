@@ -57,17 +57,25 @@ func Update5MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, kl
 		lastTime := klines[len(klines)-1].CloseTime
 		_, kLine, _ := StochRSIFromClose(closes, 14, 14, 3, 3)
 		lastKLine := kLine[len(kLine)-1]
-
+		//macd的存入
+		UpMACD := IsAboutToGoldenCross(closes, 6, 13, 5)
+		DownMACD := IsAboutToDeadCross(closes, 6, 13, 5)
+		XUpMACD := IsGolden(closes, 6, 13, 5)
+		XDownMACD := IsDead(closes, 6, 13, 5)
 		// 写入数据库（UPSERT）
 		_, err = model.DB.Exec(`
-		INSERT INTO symbol_ema_5min (symbol, timestamp, ema25, ema50, srsi)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO symbol_ema_5min (symbol, timestamp, ema25, ema50, srsi, upmacd, downmacd, xupmacd, xdownmacd)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		timestamp = VALUES(timestamp),
 		ema25 = VALUES(ema25),
 		ema50 = VALUES(ema50),
-		srsi = VALUES(srsi)
-	`, symbol, lastTime, lastEMA25, lastEMA50, lastKLine)
+		srsi = VALUES(srsi),
+		upmacd = VALUES(upmacd),
+		downmacd = VALUES(downmacd),
+		xupmacd := VALUES(xupmacd),
+		xdownmacd := VALUES(xdownmacd)
+	`, symbol, lastTime, lastEMA25, lastEMA50, lastKLine, UpMACD, DownMACD, XUpMACD, XDownMACD)
 		if err != nil {
 			log.Printf("写入 EMA25 出错 %s: %v", symbol, err)
 		}
@@ -90,4 +98,13 @@ func Get5SRSIFromDB(db *sql.DB, symbol string) (srsi float64) {
 		return 0
 	}
 	return srsi
+}
+
+func GetMACDM5FromDB(db *sql.DB, symbol string) (upmacd, downmacd, xupmacd, xdownmacd bool) {
+	err := db.QueryRow("SELECT upmacd, downmacd, xupmacd, xdownmacd FROM symbol_ema_5min WHERE symbol = ?", symbol).Scan(&upmacd, &downmacd, &xupmacd, &xdownmacd)
+	if err != nil {
+		log.Printf("查询 5MMACDFromDB 失败 %s: %v", symbol, err)
+		return false, false, false, false
+	}
+	return upmacd, downmacd, xupmacd, xdownmacd
 }

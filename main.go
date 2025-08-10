@@ -247,8 +247,21 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	sellCond := srsi15M > 65
 
 	//MACD模型
-	UpMACDM15 := utils.IsAboutToGoldenCross(closes, 6, 13, 5)
-	DownMACDM15 := utils.IsAboutToDeadCross(closes, 6, 13, 5)
+	UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := utils.GetMACDM5FromDB(db, symbol)
+	UpMACDM15, DownMACDM15 := utils.GetMACDM15FromDB(db, symbol)
+	var BuyMACD, SellMACD bool
+	if price > ema25M5 && UpMACDM5 {
+		BuyMACD = true
+	} else if price < ema25M5 && DownMACDM5 {
+		SellMACD = true
+	} else if price < ema25M5 && XUpMACDM5 {
+		BuyMACD = true
+	} else if price > ema25M5 && XDownMACDM5 {
+		SellMACD = true
+	} else {
+		BuyMACD = false
+		SellMACD = false
+	}
 
 	isBTCOrETH := symbol == "BTCUSDT" || symbol == "ETHUSDT"
 
@@ -265,7 +278,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		progressLogger.Printf("BUY 触发: %s %.2f", symbol, price)
 
 		status := "Wait"
-		if ema25M5 > ema50M5 && UpMACDM15 {
+		if ema25M5 > ema50M5 && UpMACDM15 && BuyMACD {
 			status = "View"
 		}
 		return types.CoinIndicator{
@@ -285,7 +298,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		progressLogger.Printf("SELL 触发: %s %.2f", symbol, price)
 
 		status := "Wait"
-		if ema25M5 < ema50M5 && DownMACDM15 {
+		if ema25M5 < ema50M5 && DownMACDM15 && SellMACD {
 			status = "View"
 		}
 		return types.CoinIndicator{
@@ -301,11 +314,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	// ===== 模型2（仅模型1未触发时才执行） =====
 	if isBE && BEUp && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 {
 		progressLogger.Printf("Fomo UP 触发: %s %.2f", symbol, price)
-		_, _, closesM5, err := utils.GetKlinesByAPI(client, symbol, "5m", klinesCount)
-		if err != nil || len(closesM5) < 2 {
-			return types.CoinIndicator{}, false
-		}
-		if utils.IsAboutToGoldenCross(closesM5, 6, 13, 5) {
+
+		if BuyMACD {
 			return types.CoinIndicator{
 				Symbol:       symbol,
 				Price:        price,
@@ -319,14 +329,16 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 
 	if isBE && BEDown && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 {
 		progressLogger.Printf("Fomo DOWN 触发: %s %.2f", symbol, price)
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       "Fomo",
-			Operation:    "Fomo",
-		}, true
+		if SellMACD {
+			return types.CoinIndicator{
+				Symbol:       symbol,
+				Price:        price,
+				TimeInternal: tf,
+				StochRSI:     srsi15M,
+				Status:       "Fomo",
+				Operation:    "Fomo",
+			}, true
+		}
 	}
 
 	return types.CoinIndicator{}, false

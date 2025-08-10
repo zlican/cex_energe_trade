@@ -44,6 +44,24 @@ func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalP
 	return aboutToCross || histogramUpZero
 }
 
+// 判断是否柱子上0
+func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+		return false
+	}
+
+	histogramNow := histogram[len(histogram)-1]
+
+	histogramUpZero := histogramNow >= 0
+
+	return histogramUpZero
+}
+
 // 判断是否即将死叉或柱子刚下0
 func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
@@ -70,4 +88,20 @@ func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPer
 	histogramBelowZero := histogramNow < 0
 
 	return aboutToCrossDown || histogramBelowZero
+}
+
+// 判断是否即将死叉或柱子刚下0
+func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+		return false
+	}
+	histogramNow := histogram[len(histogram)-1]
+	histogramBelowZero := histogramNow < 0
+
+	return histogramBelowZero
 }

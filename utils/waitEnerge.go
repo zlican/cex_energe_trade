@@ -87,16 +87,32 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 						log.Printf("❌ 获取K线失败: %s", sym)
 						continue
 					}
+					price := closes[len(closes)-1]
 					priceGT := GetPriceGT_EMA25FromDB(db, sym)
 					ema25M15, ema50M15, _ := Get15MEMAFromDB(db, sym)
 					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)
 
-					UpMACD := IsAboutToGoldenCross(closes, 6, 13, 5)
-					DownMACD := IsAboutToDeadCross(closes, 6, 13, 5)
+					//MACD模型
+					UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := GetMACDM5FromDB(db, sym)
+					UpMACDM15 := IsAboutToGoldenCross(closes, 6, 13, 5)
+					DownMACDM15 := IsAboutToDeadCross(closes, 6, 13, 5)
+					var BuyMACD, SellMACD bool
+					if price > ema25M5 && UpMACDM5 {
+						BuyMACD = true
+					} else if price < ema25M5 && DownMACDM5 {
+						SellMACD = true
+					} else if price < ema25M5 && XUpMACDM5 {
+						BuyMACD = true
+					} else if price > ema25M5 && XDownMACDM5 {
+						SellMACD = true
+					} else {
+						BuyMACD = false
+						SellMACD = false
+					}
 
 					switch token.Operation {
 					case "Buy":
-						if priceGT && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACD {
+						if priceGT && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 && BuyMACD {
 							msg := fmt.Sprintf("右侧回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
@@ -112,7 +128,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							changed = true
 						}
 					case "Sell":
-						if !priceGT && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACD {
+						if !priceGT && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 && SellMACD {
 							msg := fmt.Sprintf("右侧回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
