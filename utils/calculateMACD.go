@@ -27,11 +27,11 @@ func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalP
 		return false
 	}
 
-	macdNow := macdLine[len(macdLine)-1]
-	macdPrev := macdLine[len(macdLine)-2]
-	signalNow := signalLine[len(signalLine)-1]
-	signalPrev := signalLine[len(signalLine)-2]
-	histogramNow := histogram[len(histogram)-1]
+	macdNow := macdLine[len(macdLine)-2]
+	macdPrev := macdLine[len(macdLine)-3]
+	signalNow := signalLine[len(signalLine)-2]
+	signalPrev := signalLine[len(signalLine)-3]
+	histogramNow := histogram[len(histogram)-2]
 
 	// 1. 即将金叉
 	macdRate := macdNow - macdPrev
@@ -55,7 +55,7 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 		return false
 	}
 
-	histogramNow := histogram[len(histogram)-1]
+	histogramNow := histogram[len(histogram)-2]
 
 	histogramUpZero := histogramNow >= 0
 
@@ -73,11 +73,11 @@ func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPer
 		return false
 	}
 
-	macdNow := macdLine[len(macdLine)-1]
-	macdPrev := macdLine[len(macdLine)-2]
-	signalNow := signalLine[len(signalLine)-1]
-	signalPrev := signalLine[len(signalLine)-2]
-	histogramNow := histogram[len(histogram)-1]
+	macdNow := macdLine[len(macdLine)-2]
+	macdPrev := macdLine[len(macdLine)-3]
+	signalNow := signalLine[len(signalLine)-2]
+	signalPrev := signalLine[len(signalLine)-3]
+	histogramNow := histogram[len(histogram)-2]
 
 	// 1. 即将死叉：DIF 在 DEA 上方但下降速度更快
 	macdRate := macdNow - macdPrev
@@ -100,7 +100,7 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
 		return false
 	}
-	histogramNow := histogram[len(histogram)-1]
+	histogramNow := histogram[len(histogram)-2]
 	histogramBelowZero := histogramNow < 0
 
 	return histogramBelowZero
