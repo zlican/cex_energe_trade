@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"energe/model"
+	"energe/telegram"
 	"energe/types"
 	"energe/utils"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -60,6 +63,16 @@ var (
 
 func main() {
 	progressLogger.Println("程序启动...")
+
+	// 注册路由
+	http.HandleFunc("/api/latest-tg-messages", latestMessagesHandler)
+
+	// 启动HTTP服务（非阻塞）
+	go func() {
+		if err := http.ListenAndServe(":8888", nil); err != nil {
+			log.Fatalf("HTTP服务器启动失败: %v", err)
+		}
+	}()
 
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
@@ -330,4 +343,17 @@ func setHTTPClient(c *futures.Client) {
 		Transport: tr,
 		Timeout:   10 * time.Second,
 	}
+}
+func latestMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	// 参数limit，默认3
+	limit := 3
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	msgs := telegram.GetLatestMessages(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msgs)
 }
