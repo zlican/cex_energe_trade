@@ -26,26 +26,25 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 	if len(filteredResults) == 0 {
 		msgBuilder.WriteString(fmt.Sprintf("（无）Time：%s\n", now))
 	} else {
-		msgBuilder.WriteString(fmt.Sprintf("🎁Time：%s\n", now))
 		// 添加 betray 趋势信息
 		var trendParts []string
 		if betrend.BTC == "up" {
-			trendParts = append(trendParts, "BTC 多")
+			trendParts = append(trendParts, "BTC🟢")
 		} else if betrend.BTC == "down" {
-			trendParts = append(trendParts, "BTC 空")
+			trendParts = append(trendParts, "BTC🔴")
 		} else if betrend.BTC == "range" {
-			trendParts = append(trendParts, "BTC 乱")
+			trendParts = append(trendParts, "BTC⚪")
 		}
 		if betrend.ETH == "up" {
-			trendParts = append(trendParts, "ETH 多")
+			trendParts = append(trendParts, "ETH🟢")
 		} else if betrend.ETH == "down" {
-			trendParts = append(trendParts, "ETH 空")
+			trendParts = append(trendParts, "ETH🔴")
 		} else if betrend.ETH == "range" {
-			trendParts = append(trendParts, "ETH 乱")
+			trendParts = append(trendParts, "ETH⚪")
 		}
 
 		if len(trendParts) > 0 {
-			msgBuilder.WriteString("📈趋势：" + strings.Join(trendParts, " | ") + "\n")
+			msgBuilder.WriteString("🎁趋势：" + strings.Join(trendParts, " | ") + "\n")
 		}
 	}
 
@@ -63,7 +62,7 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 			continue // 非指定操作类型跳过
 		}
 
-		line := fmt.Sprintf("%s%-4s %-10s (%4s)", icon, r.Operation, r.Symbol, r.Status)
+		line := fmt.Sprintf("%s %-10s", icon, r.Symbol)
 		msgBuilder.WriteString(line + "\n")
 	}
 
