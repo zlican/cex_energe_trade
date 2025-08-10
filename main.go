@@ -64,12 +64,11 @@ var (
 func main() {
 	progressLogger.Println("程序启动...")
 
-	// 注册路由
-	http.HandleFunc("/api/latest-tg-messages", latestMessagesHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/latest-tg-messages", latestMessagesHandler)
 
-	// 启动HTTP服务（非阻塞）
 	go func() {
-		if err := http.ListenAndServe(":8888", nil); err != nil {
+		if err := http.ListenAndServe(":8888", corsMiddleware(mux)); err != nil {
 			log.Fatalf("HTTP服务器启动失败: %v", err)
 		}
 	}()
@@ -356,4 +355,19 @@ func latestMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	msgs := telegram.GetLatestMessages(limit)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
