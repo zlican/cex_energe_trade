@@ -237,8 +237,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 
 	//动能模型
 	var up, down bool
-	up = priceGT_EMA25 && ema25H1 > ema50H1 && ema25M15 > ema50M15    //1H UpTrend +15分钟金叉
-	down = !priceGT_EMA25 && ema25H1 < ema50H1 && ema25M15 < ema50M15 //1H DownTrend + 15分钟死叉
+	up = priceGT_EMA25 && ema25H1 > ema50H1 && ema25M15 > ema50M15 && price > ema25M15    //1H UpTrend +15分钟金叉 + 中时之上
+	down = !priceGT_EMA25 && ema25H1 < ema50H1 && ema25M15 < ema50M15 && price < ema25M15 //1H DownTrend + 15分钟死叉 + 中时之下
 
 	var srsi15M float64
 	srsi15M = utils.Get15SRSIFromDB(db, symbol)

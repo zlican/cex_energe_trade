@@ -112,7 +112,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 
 					switch token.Operation {
 					case "Buy":
-						if priceGT && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 && BuyMACD {
+						if priceGT && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 && BuyMACD && price > ema25M15 {
 							msg := fmt.Sprintf("右侧回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
@@ -128,7 +128,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							changed = true
 						}
 					case "Sell":
-						if !priceGT && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 && SellMACD {
+						if !priceGT && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 && SellMACD && price < ema25M15 {
 							msg := fmt.Sprintf("右侧回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
