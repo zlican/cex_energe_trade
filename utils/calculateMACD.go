@@ -16,42 +16,37 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-// 判断是否即将金叉或柱子刚上0
+// 判断是否即将金叉或柱子为正
 func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	//去除未来函数影响，不用当下的一根
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
-
-	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
 		return false
 	}
 
-	macdNow := macdLine[len(macdLine)-2]
-	macdPrev := macdLine[len(macdLine)-3]
-	signalNow := signalLine[len(signalLine)-2]
-	signalPrev := signalLine[len(signalLine)-3]
-	histogramNow := histogram[len(histogram)-2]
+	histNow := histogram[len(histogram)-2]
+	histPrev := histogram[len(histogram)-3]
 
-	// 1. 即将金叉
-	macdRate := macdNow - macdPrev
-	signalRate := signalNow - signalPrev
-	aboutToCross := macdNow < signalNow && macdRate > signalRate
+	// 1. 红柱缩短
+	UPHist := histNow > histPrev
 
-	// 2. 柱子刚刚转正
-	histogramUpZero := histogramNow >= 0
+	// 2. 柱子为正
+	histogramUpZero := histNow >= 0
 
-	return aboutToCross || histogramUpZero
+	return UPHist || histogramUpZero
 }
 
-// 判断是否柱子上0
+// 判断是否为正
 func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
 
-	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
 		return false
 	}
 
@@ -62,42 +57,36 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	return histogramUpZero
 }
 
-// 判断是否即将死叉或柱子刚下0
+// 判断是否即将死叉或柱子为负
 func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
-
-	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
 		return false
 	}
 
-	macdNow := macdLine[len(macdLine)-2]
-	macdPrev := macdLine[len(macdLine)-3]
-	signalNow := signalLine[len(signalLine)-2]
-	signalPrev := signalLine[len(signalLine)-3]
-	histogramNow := histogram[len(histogram)-2]
+	histNow := histogram[len(histogram)-2]
+	histPrev := histogram[len(histogram)-3]
 
-	// 1. 即将死叉：DIF 在 DEA 上方但下降速度更快
-	macdRate := macdNow - macdPrev
-	signalRate := signalNow - signalPrev
-	aboutToCrossDown := macdNow > signalNow && macdRate < signalRate
+	// 1. 绿柱缩短
+	DOWNHist := histNow < histPrev
 
 	// 2. 柱子刚下0：当前柱子略小于0但很小（刚刚死叉）
-	histogramBelowZero := histogramNow < 0
+	histogramBelowZero := histNow < 0
 
-	return aboutToCrossDown || histogramBelowZero
+	return DOWNHist || histogramBelowZero
 }
 
-// 判断是否即将死叉或柱子刚下0
+// 判断是否为负
 func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
 
-	macdLine, signalLine, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(macdLine) < 2 || len(signalLine) < 2 || len(histogram) < 2 {
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
 		return false
 	}
 	histogramNow := histogram[len(histogram)-2]
