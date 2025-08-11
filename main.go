@@ -250,6 +250,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	//MACD模型
 	UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := utils.GetMACDM5FromDB(db, symbol)
 	UpMACDM15, DownMACDM15 := utils.GetMACDM15FromDB(db, symbol)
+	XUpMACDM15 := utils.IsGolden(closes, 6, 13, 5)
+	XDownMACDM15 := utils.IsDead(closes, 6, 13, 5)
 	var BuyMACD, SellMACD bool
 	if price > ema25M5 && UpMACDM5 {
 		BuyMACD = true
@@ -271,7 +273,13 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	BEUp := price > ema25H1 && ema25H1 > ema50H1
 	BEDown := price < ema25H1 && ema25H1 < ema50H1
 
-	// ===== 模型1优先级最高 =====
+	Model3UP := price < ema25H1 && ema25H1 > ema50H1   //1小时随机漫步（偏多）
+	Model3DOWN := price > ema25H1 && ema25H1 < ema50H1 //1小时随机漫步（偏空）
+
+	Model3BuyMACD := XUpMACDM5 && XUpMACDM15      //双重XMACD反转（偏多）
+	Model3SellMACD := XDownMACDM5 && XDownMACDM15 //双重XMACD反转（偏空）
+
+	// ===== 模型1 ： 回调模型 =====
 	if up && buyCond {
 		if !isBTCOrETH {
 			return types.CoinIndicator{}, false
@@ -312,7 +320,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		}, true
 	}
 
-	// ===== 模型2（仅模型1未触发时才执行） =====
+	// ===== 模型2 ： Fomo模型  =====
 	if isBE && BEUp && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 {
 		progressLogger.Printf("Fomo UP 触发: %s %.2f", symbol, price)
 
@@ -342,6 +350,29 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		}
 	}
 
+	// ===== 模型3 : 反转模型  =====
+	if isBE && Model3UP && Model3BuyMACD {
+		progressLogger.Printf("Reverse UP 触发: %s %.2f", symbol, price)
+		return types.CoinIndicator{
+			Symbol:       symbol,
+			Price:        price,
+			TimeInternal: tf,
+			StochRSI:     srsi15M,
+			Status:       "Reverse",
+			Operation:    "Reverse",
+		}, true
+	}
+	if isBE && Model3DOWN && Model3SellMACD {
+		progressLogger.Printf("Reverse DOWN 触发: %s %.2f", symbol, price)
+		return types.CoinIndicator{
+			Symbol:       symbol,
+			Price:        price,
+			TimeInternal: tf,
+			StochRSI:     srsi15M,
+			Status:       "Reverse",
+			Operation:    "Reverse",
+		}, true
+	}
 	return types.CoinIndicator{}, false
 }
 

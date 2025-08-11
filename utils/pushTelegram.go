@@ -25,34 +25,14 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 	// 判断是否为空
 	if len(filteredResults) == 0 {
 		msgBuilder.WriteString(fmt.Sprintf("（无）Time：%s\n", now))
-	} else {
-		// 添加 betray 趋势信息
-		var trendParts []string
-		if betrend.BTC == "up" {
-			trendParts = append(trendParts, "BTC🟢")
-		} else if betrend.BTC == "down" {
-			trendParts = append(trendParts, "BTC🔴")
-		} else if betrend.BTC == "range" {
-			trendParts = append(trendParts, "BTC⚪")
-		}
-		if betrend.ETH == "up" {
-			trendParts = append(trendParts, "ETH🟢")
-		} else if betrend.ETH == "down" {
-			trendParts = append(trendParts, "ETH🔴")
-		} else if betrend.ETH == "range" {
-			trendParts = append(trendParts, "ETH⚪")
-		}
-
-		if len(trendParts) > 0 {
-			msgBuilder.WriteString("🎁趋势：" + strings.Join(trendParts, " | ") + "\n")
-		}
 	}
 
 	// 操作与前缀符号的映射
 	operationIcons := map[string]string{
-		"Buy":  "🟢",
-		"Sell": "🔴",
-		"Fomo": "🟣",
+		"Buy":     "🟢",
+		"Sell":    "🔴",
+		"Fomo":    "🟣",
+		"Reverse": "🟡",
 	}
 
 	for _, r := range filteredResults {

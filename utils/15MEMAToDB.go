@@ -48,6 +48,7 @@ func Update15MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, k
 			closes = append(closes, c)
 		}
 
+		price := closes[len(closes)-1]
 		ema25 := CalculateEMA(closes, 25)
 		ema50 := CalculateEMA(closes, 50)
 		ema169 := CalculateEMA(closes, 169)
@@ -62,11 +63,12 @@ func Update15MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, k
 		lastKLine := kLine[len(kLine)-1]
 		UpMACD := IsAboutToGoldenCross(closes, 6, 13, 5)
 		DownMACD := IsAboutToDeadCross(closes, 6, 13, 5)
+		GT_EMA25 := price > lastEMA25
 
 		// 写入数据库（UPSERT）
 		_, err = model.DB.Exec(`
-		INSERT INTO symbol_ema_15min (symbol, timestamp, ema25, ema50, ema169, srsi, upmacd, downmacd)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO symbol_ema_15min (symbol, timestamp, ema25, ema50, ema169, srsi, upmacd, downmacd, gtema25)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		timestamp = VALUES(timestamp),
 		ema25 = VALUES(ema25),
@@ -74,8 +76,9 @@ func Update15MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, k
 		ema169 = VALUES(ema169),
 		srsi = VALUES(srsi),
 		upmacd = VALUES(upmacd),
-		downmacd = VALUES(downmacd)
-	`, symbol, lastTime, lastEMA25, lastEMA50, lastEMA169, lastKLine, UpMACD, DownMACD)
+		downmacd = VALUES(downmacd),
+		gtema25 = VALUES(gtema25)
+	`, symbol, lastTime, lastEMA25, lastEMA50, lastEMA169, lastKLine, UpMACD, DownMACD, GT_EMA25)
 		if err != nil {
 			log.Printf("写入 EMA25 出错 %s: %v", symbol, err)
 		}
@@ -107,4 +110,13 @@ func GetMACDM15FromDB(db *sql.DB, symbol string) (upmacd, downmacd bool) {
 		return false, false
 	}
 	return upmacd, downmacd
+}
+
+func GetGT_EMA25FromDB(db *sql.DB, symbol string) (gtema25 bool) {
+	err := db.QueryRow("SELECT gtema25 FROM symbol_ema_15min WHERE symbol = ?", symbol).Scan(&gtema25)
+	if err != nil {
+		log.Printf("查询 GT_EMA25FromDB 失败 %s: %v", symbol, err)
+		return false
+	}
+	return gtema25
 }
