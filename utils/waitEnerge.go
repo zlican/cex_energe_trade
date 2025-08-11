@@ -29,12 +29,11 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	defer waitMu.Unlock()
 
 	if len(waitList) == 0 {
-		log.Println("📤 无需推送等待区列表：等待池为空")
+		telegram.SendMessageWaiting(waiting_token, chatID, "等待区为空")
 		return
 	}
 
 	var msgBuilder strings.Builder
-	msgBuilder.WriteString(fmt.Sprintf("等待区更新（%s）👇\n", now.Format("15:04")))
 
 	var emoje string
 
@@ -47,7 +46,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "-"
 		}
 
-		msgBuilder.WriteString(fmt.Sprintf("%s %-12s(%s)	加入: %s\n", emoje, token.Symbol, token.Operation, token.AddedAt.Format("15:04")))
+		msgBuilder.WriteString(fmt.Sprintf("%s %-12s\n", emoje, token.Symbol))
 	}
 	msg := msgBuilder.String()
 	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitList))

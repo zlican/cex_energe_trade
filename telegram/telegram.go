@@ -32,6 +32,14 @@ var (
 		messages: make([]SavedMessage, 0, 100),
 		maxSize:  100,
 	}
+	savedMessagesWaiting = struct {
+		sync.RWMutex
+		messages []SavedMessage
+		maxSize  int
+	}{
+		messages: make([]SavedMessage, 0, 100),
+		maxSize:  100,
+	}
 )
 
 func SendMessage(botToken, chatID, text string) error {
@@ -71,16 +79,7 @@ func SendMessage(botToken, chatID, text string) error {
 		return fmt.Errorf("received non-200 response: %s", resp.Status)
 	}
 
-	// 发送成功后保存消息，线程安全写入
-	savedMessages.Lock()
-	defer savedMessages.Unlock()
-
-	// 如果超过最大容量，先删除最早的一条
-	if len(savedMessages.messages) >= 100 {
-		savedMessages.messages = savedMessages.messages[1:]
-	}
-
-	savedMessages.messages = append(savedMessages.messages, SavedMessage{
+	AddMessage(SavedMessage{
 		Text:      text,
 		Timestamp: time.Now(),
 	})
@@ -158,5 +157,43 @@ func SendMessageWaiting(botToken, chatID, text string) error {
 		return fmt.Errorf("received non-200 response: %s", resp.Status)
 	}
 
+	AddMessageWaiting(SavedMessage{
+		Text:      text,
+		Timestamp: time.Now(),
+	})
+
 	return nil
+}
+
+// AddMessage 添加一条消息，超出maxSize自动删除最早的
+func AddMessageWaiting(msg SavedMessage) {
+	savedMessagesWaiting.Lock()
+	defer savedMessagesWaiting.Unlock()
+
+	if len(savedMessagesWaiting.messages) >= savedMessagesWaiting.maxSize {
+		// 删除最早的一条，保持长度不变
+		savedMessagesWaiting.messages = savedMessagesWaiting.messages[1:]
+	}
+	savedMessagesWaiting.messages = append(savedMessagesWaiting.messages, msg)
+}
+
+// GetLatestMessages 返回最新1条，倒序
+func GetLatestMessagesWaiting(n int) []SavedMessage {
+	savedMessagesWaiting.RLock()
+	defer savedMessagesWaiting.RUnlock()
+
+	total := len(savedMessagesWaiting.messages)
+	if total == 0 {
+		return nil
+	}
+
+	if n > total {
+		n = total
+	}
+
+	res := make([]SavedMessage, n)
+	for i := 0; i < n; i++ {
+		res[i] = savedMessagesWaiting.messages[total-1-i]
+	}
+	return res
 }
