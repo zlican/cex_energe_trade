@@ -16,9 +16,8 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-// 判断是否即将金叉或柱子为正
+// 判断是否做多
 func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	//去除未来函数影响，不用当下的一根
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
@@ -27,16 +26,19 @@ func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalP
 		return false
 	}
 
-	histNow := histogram[len(histogram)-2]
-	histPrev := histogram[len(histogram)-3]
+	A := histogram[len(histogram)-3] // 更早
+	B := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-1] // 最新
 
-	// 1. 红柱缩短
-	UPHist := histNow > histPrev
-
-	// 2. 柱子为正
-	histogramUpZero := histNow >= 0
-
-	return UPHist || histogramUpZero
+	// 条件一：最新柱为正（直接看多）
+	if C > 0 {
+		return true
+	}
+	// 条件二：三根都为负且逐步抬高（从更负到接近 0）：A < B < C
+	if A < 0 && B < 0 && C < 0 && A < B && B < C {
+		return true
+	}
+	return false
 }
 
 // 判断是否为正
@@ -50,14 +52,16 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 		return false
 	}
 
-	histogramNow := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-1] // 最新
 
-	histogramUpZero := histogramNow >= 0
-
-	return histogramUpZero
+	// 条件一：最新柱为正（直接看多）
+	if C > 0 {
+		return true
+	}
+	return false
 }
 
-// 判断是否即将死叉或柱子为负
+// 判断是否做空
 func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -67,16 +71,19 @@ func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPer
 		return false
 	}
 
-	histNow := histogram[len(histogram)-2]
-	histPrev := histogram[len(histogram)-3]
+	A := histogram[len(histogram)-3]
+	B := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-1]
 
-	// 1. 绿柱缩短
-	DOWNHist := histNow < histPrev
-
-	// 2. 柱子刚下0：当前柱子略小于0但很小（刚刚死叉）
-	histogramBelowZero := histNow < 0
-
-	return DOWNHist || histogramBelowZero
+	// 条件一：最新柱为负（直接看空）
+	if C < 0 {
+		return true
+	}
+	// 条件二：三根都为正且逐步走低（从高到低）：A > B > C
+	if A > 0 && B > 0 && C > 0 && A > B && B > C {
+		return true
+	}
+	return false
 }
 
 // 判断是否为负
@@ -89,8 +96,11 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	if len(histogram) < 3 {
 		return false
 	}
-	histogramNow := histogram[len(histogram)-2]
-	histogramBelowZero := histogramNow < 0
+	C := histogram[len(histogram)-1]
 
-	return histogramBelowZero
+	// 条件一：最新柱为负（直接看空）
+	if C < 0 {
+		return true
+	}
+	return false
 }
