@@ -104,7 +104,7 @@ func Get15SRSIFromDB(db *sql.DB, symbol string) (srsi float64) {
 }
 
 func GetMACDM15FromDB(db *sql.DB, symbol string) (upmacd, downmacd bool) {
-	err := db.QueryRow("SELECT upmacd, downmacd FROM symbol_ema_5min WHERE symbol = ?", symbol).Scan(&upmacd, &downmacd)
+	err := db.QueryRow("SELECT upmacd, downmacd FROM symbol_ema_15min WHERE symbol = ?", symbol).Scan(&upmacd, &downmacd)
 	if err != nil {
 		log.Printf("查询 15MMACDFromDB 失败 %s: %v", symbol, err)
 		return false, false
