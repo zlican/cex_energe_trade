@@ -42,6 +42,8 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "🟢"
 		} else if token.Operation == "Sell" {
 			emoje = "🔴"
+		} else if token.Operation == "FomoBuy" || token.Operation == "FomoSell" {
+			emoje = "🟣"
 		} else {
 			emoje = "-"
 		}
@@ -89,29 +91,43 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					price := closes[len(closes)-1]
 					priceGT := GetPriceGT_EMA25FromDB(db, sym)
 					ema25M15, ema50M15, _ := Get15MEMAFromDB(db, sym)
-					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)
+					ema25M5, _ := Get5MEMAFromDB(db, sym)
 
 					//MACD模型
 					UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := GetMACDM5FromDB(db, sym)
 					UpMACDM15 := IsAboutToGoldenCross(closes, 6, 13, 5)
 					DownMACDM15 := IsAboutToDeadCross(closes, 6, 13, 5)
-					var BuyMACD, SellMACD bool
+					XUpMACDM15 := IsGolden(closes, 6, 13, 5)
+					XDownMACDM15 := IsDead(closes, 6, 13, 5)
+					var BuyMACDM5, SellMACDM5, BuyMACDM15, SellMACDM15 bool
 					if price > ema25M5 && UpMACDM5 {
-						BuyMACD = true
+						BuyMACDM5 = true
 					} else if price < ema25M5 && DownMACDM5 {
-						SellMACD = true
+						SellMACDM5 = true
 					} else if price < ema25M5 && XUpMACDM5 {
-						BuyMACD = true
+						BuyMACDM5 = true
 					} else if price > ema25M5 && XDownMACDM5 {
-						SellMACD = true
+						SellMACDM5 = true
 					} else {
-						BuyMACD = false
-						SellMACD = false
+						BuyMACDM5 = false
+						SellMACDM5 = false
 					}
 
+					if price > ema25M15 && UpMACDM15 {
+						BuyMACDM15 = true
+					} else if price < ema25M15 && DownMACDM15 {
+						SellMACDM15 = true
+					} else if price < ema25M15 && XUpMACDM15 {
+						BuyMACDM15 = true
+					} else if price > ema25M15 && XDownMACDM15 {
+						SellMACDM15 = true
+					} else {
+						BuyMACDM15 = false
+						SellMACDM15 = false
+					}
 					switch token.Operation {
-					case "Buy":
-						if priceGT && ema25M15 > ema50M15 && ema25M5 > ema50M5 && UpMACDM15 && BuyMACD && price > ema25M15 {
+					case "Buy", "FomoBuy":
+						if priceGT && ema25M15 > ema50M15 && BuyMACDM15 && BuyMACDM5 && price > ema25M15 {
 							msg := fmt.Sprintf("右侧回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
@@ -126,8 +142,8 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							waitMu.Unlock()
 							changed = true
 						}
-					case "Sell":
-						if !priceGT && ema25M15 < ema50M15 && ema25M5 < ema50M5 && DownMACDM15 && SellMACD && price < ema25M15 {
+					case "Sell", "FomoSell":
+						if !priceGT && ema25M15 < ema50M15 && SellMACDM15 && SellMACDM5 && price < ema25M15 {
 							msg := fmt.Sprintf("右侧回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)

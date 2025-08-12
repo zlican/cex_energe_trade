@@ -29,10 +29,11 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 
 	// 操作与前缀符号的映射
 	operationIcons := map[string]string{
-		"Buy":     "🟢",
-		"Sell":    "🔴",
-		"Fomo":    "🟣",
-		"Reverse": "🟡",
+		"Buy":      "🟢",
+		"Sell":     "🔴",
+		"FomoBuy":  "🟣",
+		"FomoSell": "🟣",
+		"Reverse":  "🟡",
 	}
 
 	for _, r := range filteredResults {
