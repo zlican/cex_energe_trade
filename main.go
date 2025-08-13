@@ -234,29 +234,19 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	ema25M15, ema50M15, _ := utils.Get15MEMAFromDB(db, symbol)
 	ema25H1, ema50H1 := utils.Get1HEMAFromDB(db, symbol)
 	ema25M5, ema50M5 := utils.Get5MEMAFromDB(db, symbol)
-	priceGT_EMA25 := utils.GetPriceGT_EMA25FromDB(db, symbol) //1H 价格在25EMA上方
 
 	//动能模型
-	var up, down bool
-	up = priceGT_EMA25 && ema25H1 > ema50H1 && ema25M15 > ema50M15    //1H UpTrend +15分钟金叉
-	down = !priceGT_EMA25 && ema25H1 < ema50H1 && ema25M15 < ema50M15 //1H DownTrend + 15分钟死叉
-
-	var srsi15M float64
-	srsi15M = utils.Get15SRSIFromDB(db, symbol)
-
-	buyCond := srsi15M < 35
-	sellCond := srsi15M > 65
+	var TrendUp, TrendDOWN bool
+	TrendUp = price > ema25H1 && ema25H1 > ema50H1 && price > ema25M15 && ema25M15 > ema50M15
+	TrendDOWN = price < ema25H1 && ema25H1 < ema50H1 && price < ema25M15 && ema25M15 < ema50M15
 
 	//MACD模型
 	UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := utils.GetMACDM5FromDB(db, symbol)
-	UpMACDM15, DownMACDM15 := utils.GetMACDM15FromDB(db, symbol)
 	XUpMACDM15 := utils.IsGolden(closes, 6, 13, 5)
 	XDownMACDM15 := utils.IsDead(closes, 6, 13, 5)
-	var BuyMACDM5, SellMACDM5, BuyMACDM15, SellMACDM15 bool
+	var BuyMACDM5, SellMACDM5 bool
 	M5UPEMA := ema25M5 > ema50M5
 	M5DOWNEMA := ema25M5 < ema50M5
-	M15UPEMA := ema25M15 > ema50M15
-	M15DOWNEMA := ema25M15 < ema50M15
 	if M5UPEMA && price > ema25M5 && UpMACDM5 { //金叉浅回调
 		BuyMACDM5 = true
 	} else if M5UPEMA && price < ema25M5 && XUpMACDM5 { //金叉深回调
@@ -274,81 +264,15 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		SellMACDM5 = false
 	}
 
-	if M15UPEMA && price > ema25M15 && UpMACDM15 { //金叉浅回调
-		BuyMACDM15 = true
-	} else if M15UPEMA && price < ema25M15 && XUpMACDM15 { //金叉深回调
-		BuyMACDM15 = true
-	} else if M15DOWNEMA && price > ema25M15 && XUpMACDM15 { //死叉反转
-		BuyMACDM5 = true
-	} else if M15DOWNEMA && price < ema25M15 && DownMACDM15 {
-		SellMACDM15 = true
-	} else if M15DOWNEMA && price > ema25M15 && XDownMACDM15 {
-		SellMACDM15 = true
-	} else if M15UPEMA && price < ema25M15 && XDownMACDM15 {
-		SellMACDM5 = true
-	} else {
-		BuyMACDM15 = false
-		SellMACDM15 = false
-	}
-
-	isBTCOrETH := symbol == "BTCUSDT" || symbol == "ETHUSDT"
-
-	// BE 专属
-	isBE := isBTCOrETH
-	BEUp := price > ema25H1 && ema25H1 > ema50H1
-	BEDown := price < ema25H1 && ema25H1 < ema50H1
-
 	Model3UP := ema25H1 > ema50H1   //1小时随机漫步（偏多）
 	Model3DOWN := ema25H1 < ema50H1 //1小时随机漫步（偏空）
 
 	Model3BuyMACD := XUpMACDM5 && XUpMACDM15      //双重XMACD反转（偏多）
 	Model3SellMACD := XDownMACDM5 && XDownMACDM15 //双重XMACD反转（偏空）
 
-	// ===== 模型1 ： 回调模型 =====
-	if up && buyCond {
-		if !isBTCOrETH {
-			return types.CoinIndicator{}, false
-		}
-		progressLogger.Printf("BUY 触发: %s %.2f", symbol, price)
-
-		status := "Wait"
-		if BuyMACDM15 && BuyMACDM5 {
-			status = "View"
-		}
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       status,
-			Operation:    "Buy",
-		}, true
-	}
-
-	if down && sellCond {
-		if !isBTCOrETH {
-			return types.CoinIndicator{}, false
-		}
-		progressLogger.Printf("SELL 触发: %s %.2f", symbol, price)
-
-		status := "Wait"
-		if SellMACDM15 && SellMACDM5 {
-			status = "View"
-		}
-		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			StochRSI:     srsi15M,
-			Status:       status,
-			Operation:    "Sell",
-		}, true
-	}
-
-	// ===== 模型2 ： Fomo模型  =====
-	if isBE && BEUp && ema25M15 > ema50M15 && BuyMACDM15 {
+	// ===== 模型1 ： Fomo模型  =====
+	if TrendUp {
 		progressLogger.Printf("Fomo UP 触发: %s %.2f", symbol, price)
-
 		status := "Wait"
 		if BuyMACDM5 {
 			status = "Fomo"
@@ -357,47 +281,43 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 			Symbol:       symbol,
 			Price:        price,
 			TimeInternal: tf,
-			StochRSI:     srsi15M,
 			Status:       status,
 			Operation:    "FomoBuy",
 		}, true
 	}
 
-	if isBE && BEDown && ema25M15 < ema50M15 && SellMACDM15 {
+	if TrendDOWN {
 		progressLogger.Printf("Fomo DOWN 触发: %s %.2f", symbol, price)
 		status := "Wait"
-		if BuyMACDM5 {
+		if SellMACDM5 {
 			status = "Fomo"
 		}
 		return types.CoinIndicator{
 			Symbol:       symbol,
 			Price:        price,
 			TimeInternal: tf,
-			StochRSI:     srsi15M,
 			Status:       status,
 			Operation:    "FomoSell",
 		}, true
 	}
 
-	// ===== 模型3 : 反转模型  =====
-	if isBE && Model3UP && Model3BuyMACD {
+	// ===== 模型2 : 反转模型  =====
+	if Model3UP && Model3BuyMACD {
 		progressLogger.Printf("Reverse UP 触发: %s %.2f", symbol, price)
 		return types.CoinIndicator{
 			Symbol:       symbol,
 			Price:        price,
 			TimeInternal: tf,
-			StochRSI:     srsi15M,
 			Status:       "Reverse",
 			Operation:    "Reverse",
 		}, true
 	}
-	if isBE && Model3DOWN && Model3SellMACD {
+	if Model3DOWN && Model3SellMACD {
 		progressLogger.Printf("Reverse DOWN 触发: %s %.2f", symbol, price)
 		return types.CoinIndicator{
 			Symbol:       symbol,
 			Price:        price,
 			TimeInternal: tf,
-			StochRSI:     srsi15M,
 			Status:       "Reverse",
 			Operation:    "Reverse",
 		}, true
