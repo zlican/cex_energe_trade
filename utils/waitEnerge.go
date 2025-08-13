@@ -72,6 +72,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 		defer ticker.Stop()
 
 		for now := range ticker.C {
+			time.Sleep(7 * time.Second)
 			go func(now time.Time) {
 				var changed bool // 是否发生了删除
 
@@ -191,8 +192,8 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 		waitMu.Lock()
 		for _, coin := range newResults {
 			if coin.Status == "Wait" {
-				existing, exists := waitList[coin.Symbol]
-				if !exists || existing.Operation != coin.Operation {
+				_, exists := waitList[coin.Symbol]
+				if !exists {
 					waitList[coin.Symbol] = waitToken{
 						Symbol:    coin.Symbol,
 						Operation: coin.Operation,
