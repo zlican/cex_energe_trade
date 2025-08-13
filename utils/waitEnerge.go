@@ -55,20 +55,18 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	telegram.SendMessageWaiting(waiting_token, chatID, msg)
 }
 
-func waitUntilNext5Min() time.Duration {
+func waitUntilNextMinute() time.Duration {
 	now := time.Now()
-	next := now.Truncate(time.Minute).Add(time.Duration(5-now.Minute()%5) * time.Minute)
-	if next.Before(now) || next.Equal(now) {
-		next = next.Add(5 * time.Minute)
-	}
+	next := now.Truncate(time.Minute).Add(time.Minute)
 	return time.Until(next)
 }
 
 func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_token, chatID string, client *futures.Client, klinesCount int, waiting_token string) {
 	go func() {
-		// 首次对齐等待，直到下一个 5 分钟整点
-		time.Sleep(waitUntilNext5Min())
-		ticker := time.NewTicker(5 * time.Minute)
+		// 先对齐到下一个整分钟
+		time.Sleep(waitUntilNextMinute())
+
+		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 
 		for now := range ticker.C {
