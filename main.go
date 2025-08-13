@@ -233,7 +233,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	price := closes[len(closes)-1]
 	ema25M15, ema50M15, _ := utils.Get15MEMAFromDB(db, symbol)
 	ema25H1, ema50H1 := utils.Get1HEMAFromDB(db, symbol)
-	ema25M5, _ := utils.Get5MEMAFromDB(db, symbol)
+	ema25M5, ema50M5 := utils.Get5MEMAFromDB(db, symbol)
 	priceGT_EMA25 := utils.GetPriceGT_EMA25FromDB(db, symbol) //1H 价格在25EMA上方
 
 	//动能模型
@@ -253,27 +253,39 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	XUpMACDM15 := utils.IsGolden(closes, 6, 13, 5)
 	XDownMACDM15 := utils.IsDead(closes, 6, 13, 5)
 	var BuyMACDM5, SellMACDM5, BuyMACDM15, SellMACDM15 bool
-	if price > ema25M5 && UpMACDM5 {
+	M5UPEMA := ema25M5 > ema50M5
+	M5DOWNEMA := ema25M5 < ema50M5
+	M15UPEMA := ema25M15 > ema50M15
+	M15DOWNEMA := ema25M15 < ema50M15
+	if M5UPEMA && price > ema25M5 && UpMACDM5 { //金叉浅回调
 		BuyMACDM5 = true
-	} else if price < ema25M5 && DownMACDM5 {
+	} else if M5UPEMA && price < ema25M5 && XUpMACDM5 { //金叉深回调
+		BuyMACDM5 = true
+	} else if M5DOWNEMA && price > ema25M5 && XUpMACDM5 { //死叉反转
+		BuyMACDM5 = true
+	} else if M5DOWNEMA && price < ema25M5 && DownMACDM5 {
 		SellMACDM5 = true
-	} else if price < ema25M5 && XUpMACDM5 {
-		BuyMACDM5 = true
-	} else if price > ema25M5 && XDownMACDM5 {
+	} else if M5DOWNEMA && price > ema25M5 && XDownMACDM5 {
+		SellMACDM5 = true
+	} else if M5UPEMA && price < ema25M5 && XDownMACDM5 {
 		SellMACDM5 = true
 	} else {
 		BuyMACDM5 = false
 		SellMACDM5 = false
 	}
 
-	if price > ema25M15 && UpMACDM15 {
+	if M15UPEMA && price > ema25M15 && UpMACDM15 { //金叉浅回调
 		BuyMACDM15 = true
-	} else if price < ema25M15 && DownMACDM15 {
-		SellMACDM15 = true
-	} else if price < ema25M15 && XUpMACDM15 {
+	} else if M15UPEMA && price < ema25M15 && XUpMACDM15 { //金叉深回调
 		BuyMACDM15 = true
-	} else if price > ema25M15 && XDownMACDM15 {
+	} else if M15DOWNEMA && price > ema25M15 && XUpMACDM15 { //死叉反转
+		BuyMACDM5 = true
+	} else if M15DOWNEMA && price < ema25M15 && DownMACDM15 {
 		SellMACDM15 = true
+	} else if M15DOWNEMA && price > ema25M15 && XDownMACDM15 {
+		SellMACDM15 = true
+	} else if M15UPEMA && price < ema25M15 && XDownMACDM15 {
+		SellMACDM5 = true
 	} else {
 		BuyMACDM15 = false
 		SellMACDM15 = false
@@ -286,8 +298,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	BEUp := price > ema25H1 && ema25H1 > ema50H1
 	BEDown := price < ema25H1 && ema25H1 < ema50H1
 
-	Model3UP := price < ema25H1 && ema25H1 > ema50H1   //1小时随机漫步（偏多）
-	Model3DOWN := price > ema25H1 && ema25H1 < ema50H1 //1小时随机漫步（偏空）
+	Model3UP := ema25H1 > ema50H1   //1小时随机漫步（偏多）
+	Model3DOWN := ema25H1 < ema50H1 //1小时随机漫步（偏空）
 
 	Model3BuyMACD := XUpMACDM5 && XUpMACDM15      //双重XMACD反转（偏多）
 	Model3SellMACD := XDownMACDM5 && XDownMACDM15 //双重XMACD反转（偏空）

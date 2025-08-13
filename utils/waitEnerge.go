@@ -91,7 +91,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					price := closes[len(closes)-1]
 					priceGT := GetPriceGT_EMA25FromDB(db, sym)
 					ema25M15, ema50M15, _ := Get15MEMAFromDB(db, sym)
-					ema25M5, _ := Get5MEMAFromDB(db, sym)
+					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)
 
 					//MACD模型
 					UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := GetMACDM5FromDB(db, sym)
@@ -100,31 +100,44 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					XUpMACDM15 := IsGolden(closes, 6, 13, 5)
 					XDownMACDM15 := IsDead(closes, 6, 13, 5)
 					var BuyMACDM5, SellMACDM5, BuyMACDM15, SellMACDM15 bool
-					if price > ema25M5 && UpMACDM5 {
+					M5UPEMA := ema25M5 > ema50M5
+					M5DOWNEMA := ema25M5 < ema50M5
+					M15UPEMA := ema25M15 > ema50M15
+					M15DOWNEMA := ema25M15 < ema50M15
+					if M5UPEMA && price > ema25M5 && UpMACDM5 { //金叉浅回调
 						BuyMACDM5 = true
-					} else if price < ema25M5 && DownMACDM5 {
+					} else if M5UPEMA && price < ema25M5 && XUpMACDM5 { //金叉深回调
+						BuyMACDM5 = true
+					} else if M5DOWNEMA && price > ema25M5 && XUpMACDM5 { //死叉反转
+						BuyMACDM5 = true
+					} else if M5DOWNEMA && price < ema25M5 && DownMACDM5 {
 						SellMACDM5 = true
-					} else if price < ema25M5 && XUpMACDM5 {
-						BuyMACDM5 = true
-					} else if price > ema25M5 && XDownMACDM5 {
+					} else if M5DOWNEMA && price > ema25M5 && XDownMACDM5 {
+						SellMACDM5 = true
+					} else if M5UPEMA && price < ema25M5 && XDownMACDM5 {
 						SellMACDM5 = true
 					} else {
 						BuyMACDM5 = false
 						SellMACDM5 = false
 					}
 
-					if price > ema25M15 && UpMACDM15 {
+					if M15UPEMA && price > ema25M15 && UpMACDM15 { //金叉浅回调
 						BuyMACDM15 = true
-					} else if price < ema25M15 && DownMACDM15 {
-						SellMACDM15 = true
-					} else if price < ema25M15 && XUpMACDM15 {
+					} else if M15UPEMA && price < ema25M15 && XUpMACDM15 { //金叉深回调
 						BuyMACDM15 = true
-					} else if price > ema25M15 && XDownMACDM15 {
+					} else if M15DOWNEMA && price > ema25M15 && XUpMACDM15 { //死叉反转
+						BuyMACDM5 = true
+					} else if M15DOWNEMA && price < ema25M15 && DownMACDM15 {
 						SellMACDM15 = true
+					} else if M15DOWNEMA && price > ema25M15 && XDownMACDM15 {
+						SellMACDM15 = true
+					} else if M15UPEMA && price < ema25M15 && XDownMACDM15 {
+						SellMACDM5 = true
 					} else {
 						BuyMACDM15 = false
 						SellMACDM15 = false
 					}
+
 					switch token.Operation {
 					case "Buy", "FomoBuy":
 						if priceGT && ema25M15 > ema50M15 && BuyMACDM15 && BuyMACDM5 {
