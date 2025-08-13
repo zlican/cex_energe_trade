@@ -144,9 +144,6 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-							waitMu.Lock()
-							delete(waitList, sym)
-							waitMu.Unlock()
 							changed = true
 						} else if ema25M15 < ema50M15 {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
@@ -160,9 +157,6 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
-							waitMu.Lock()
-							delete(waitList, sym)
-							waitMu.Unlock()
 							changed = true
 						} else if ema25M15 > ema50M15 {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
