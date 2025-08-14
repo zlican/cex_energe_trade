@@ -31,7 +31,7 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 	operationIcons := map[string]string{
 		"FomoBuy":  "🟢",
 		"FomoSell": "🔴",
-		"Reverse":  "🟡",
+		"Singu":    "🟣",
 	}
 
 	for _, r := range filteredResults {

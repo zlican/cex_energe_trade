@@ -42,6 +42,8 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "🟢"
 		} else if token.Operation == "FomoSell" {
 			emoje = "🔴"
+		} else if token.Operation == "Singu" {
+			emoje = "🟣"
 		} else {
 			emoje = "-"
 		}
@@ -90,9 +92,11 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)
 
 					//动能模型
-					var TrendUp, TrendDOWN bool
-					TrendUp = price > ema25H1 && ema25H1 > ema50H1 && price > ema25M15 && ema25M15 > ema50M15
-					TrendDOWN = price < ema25H1 && ema25H1 < ema50H1 && price < ema25M15 && ema25M15 < ema50M15
+					var TrendUpH1, TrendUpM15, TrendDOWNH1, TrendDOWNM15 bool
+					TrendUpH1 = price > ema25H1 && ema25H1 > ema50H1
+					TrendDOWNH1 = price < ema25H1 && ema25H1 < ema50H1
+					TrendUpM15 = price > ema25M15 && ema25M15 > ema50M15
+					TrendDOWNM15 = price < ema25M15 && ema25M15 < ema50M15
 
 					//MACD模型
 					UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := GetMACDM5FromDB(db, sym)
@@ -117,12 +121,12 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					}
 					switch token.Operation {
 					case "FomoBuy":
-						if TrendUp && BuyMACDM5 {
-							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
+						if !TrendDOWNH1 && !TrendDOWNM15 && BuyMACDM5 {
+							msg := fmt.Sprintf("监控回响：🟣%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-							log.Printf("🟢 等待成功 Buy : %s", sym)
+							log.Printf("🟣 等待成功 Buy : %s", sym)
 							changed = true
-						} else if ema25M15 < ema50M15 {
+						} else if TrendDOWNM15 {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -130,12 +134,30 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							changed = true
 						}
 					case "FomoSell":
-						if TrendDOWN && SellMACDM5 {
+						if !TrendUpH1 && !TrendUpM15 && SellMACDM5 {
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
 							changed = true
-						} else if ema25M15 > ema50M15 {
+						} else if TrendUpM15 {
+							log.Printf("❌ Wait失败 Sell : %s", sym)
+							waitMu.Lock()
+							delete(waitList, sym)
+							waitMu.Unlock()
+							changed = true
+						}
+					case "Singu":
+						if !TrendDOWNH1 && !TrendDOWNM15 && BuyMACDM5 {
+							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							log.Printf("🟢 等待成功 Buy : %s", sym)
+							changed = true
+						} else if !TrendUpH1 && !TrendUpM15 && SellMACDM5 {
+							msg := fmt.Sprintf("监控回响：🔴%s", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							log.Printf("🔴 等待成功 Sell : %s", sym)
+							changed = true
+						} else if TrendUpM15 || TrendDOWNM15 {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
