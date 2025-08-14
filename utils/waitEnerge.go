@@ -190,8 +190,18 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 		waitMu.Lock()
 		for _, coin := range newResults {
 			if coin.Status == "Wait" {
-				_, exists := waitList[coin.Symbol]
+				exist, exists := waitList[coin.Symbol]
 				if !exists {
+					waitList[coin.Symbol] = waitToken{
+						Symbol:    coin.Symbol,
+						Operation: coin.Operation,
+						Status:    coin.Status,
+						AddedAt:   now,
+					}
+					log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
+					newAdded = true
+				}
+				if exists && exist.Operation != coin.Operation {
 					waitList[coin.Symbol] = waitToken{
 						Symbol:    coin.Symbol,
 						Operation: coin.Operation,
