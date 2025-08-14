@@ -48,7 +48,7 @@ func Update15MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, k
 			closes = append(closes, c)
 		}
 
-		price := closes[len(closes)-1]
+		price := closes[len(closes)-2]
 		ema25 := CalculateEMA(closes, 25)
 		ema50 := CalculateEMA(closes, 50)
 		ema169 := CalculateEMA(closes, 169)

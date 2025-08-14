@@ -86,7 +86,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 						log.Printf("❌ 获取K线失败: %s", sym)
 						continue
 					}
-					price := closes[len(closes)-1]
+					price := closes[len(closes)-2]
 					ema25M15, ema50M15, _ := Get15MEMAFromDB(db, sym)
 					ema25H1, ema50H1 := Get1HEMAFromDB(db, sym)
 					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)

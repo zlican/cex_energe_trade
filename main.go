@@ -230,7 +230,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		return types.CoinIndicator{}, false
 	}
 
-	price := closes[len(closes)-1]
+	price := closes[len(closes)-2]
 	ema25M15, ema50M15, _ := utils.Get15MEMAFromDB(db, symbol)
 	ema25H1, ema50H1 := utils.Get1HEMAFromDB(db, symbol)
 	ema25M5, ema50M5 := utils.Get5MEMAFromDB(db, symbol)
