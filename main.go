@@ -242,8 +242,6 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 
 	//MACD模型
 	UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := utils.GetMACDM5FromDB(db, symbol)
-	XUpMACDM15 := utils.IsGolden(closes, 6, 13, 5)
-	XDownMACDM15 := utils.IsDead(closes, 6, 13, 5)
 	var BuyMACDM5, SellMACDM5 bool
 	M5UPEMA := ema25M5 > ema50M5
 	M5DOWNEMA := ema25M5 < ema50M5
@@ -264,11 +262,8 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 		SellMACDM5 = false
 	}
 
-	Model3UP := ema25H1 > ema50H1   //1小时随机漫步（偏多）
-	Model3DOWN := ema25H1 < ema50H1 //1小时随机漫步（偏空）
-
-	Model3BuyMACD := XUpMACDM5 && XUpMACDM15      //双重XMACD反转（偏多）
-	Model3SellMACD := XDownMACDM5 && XDownMACDM15 //双重XMACD反转（偏空）
+	ReverseUP := ema25H1 > ema50H1 && price > ema25M15
+	ReverseDOWN := ema25H1 < ema50H1 && price < ema25M15
 
 	// ===== 模型1 ： Fomo模型  =====
 	if TrendUp {
@@ -302,7 +297,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	}
 
 	// ===== 模型2 : 反转模型  =====
-	if Model3UP && Model3BuyMACD {
+	if ReverseUP && BuyMACDM5 {
 		progressLogger.Printf("Reverse UP 触发: %s %.2f", symbol, price)
 		return types.CoinIndicator{
 			Symbol:       symbol,
@@ -312,7 +307,7 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 			Operation:    "Reverse",
 		}, true
 	}
-	if Model3DOWN && Model3SellMACD {
+	if ReverseDOWN && SellMACDM5 {
 		progressLogger.Printf("Reverse DOWN 触发: %s %.2f", symbol, price)
 		return types.CoinIndicator{
 			Symbol:       symbol,
