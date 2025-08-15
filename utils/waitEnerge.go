@@ -122,7 +122,6 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-							changed = true
 						} else if TrendDOWNM15 {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
 							waitMu.Lock()
@@ -135,7 +134,6 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
-							changed = true
 						} else if TrendUpM15 {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
@@ -148,12 +146,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-							changed = true
 						} else if !TrendUpH1 && !TrendUpM15 && SellMACDM5 {
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
-							changed = true
 						} else if TrendUpM15 || TrendDOWNM15 {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
