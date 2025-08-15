@@ -122,9 +122,9 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					switch token.Operation {
 					case "FomoBuy":
 						if !TrendDOWNH1 && !TrendDOWNM15 && BuyMACDM5 {
-							msg := fmt.Sprintf("监控回响：🟣%s ", sym)
+							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-							log.Printf("🟣 等待成功 Buy : %s", sym)
+							log.Printf("🟢 等待成功 Buy : %s", sym)
 							changed = true
 						} else if TrendDOWNM15 {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
