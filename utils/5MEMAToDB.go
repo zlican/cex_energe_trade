@@ -49,6 +49,7 @@ func Update5MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, kl
 
 		ema25 := CalculateEMA(closes, 25)
 		ema50 := CalculateEMA(closes, 50)
+		ma60 := CalculateMA(closes, 60)
 		if len(ema25) == 0 {
 			continue
 		}
@@ -64,18 +65,19 @@ func Update5MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, kl
 		XDownMACD := IsDead(closes, 6, 13, 5)
 		// 写入数据库（UPSERT）
 		_, err = model.DB.Exec(`
-		INSERT INTO symbol_ema_5min (symbol, timestamp, ema25, ema50, srsi, upmacd, downmacd, xupmacd, xdownmacd)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO symbol_ema_5min (symbol, timestamp, ema25, ema50, ma60, srsi, upmacd, downmacd, xupmacd, xdownmacd)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		timestamp = VALUES(timestamp),
 		ema25 = VALUES(ema25),
 		ema50 = VALUES(ema50),
+		ma60 = VALUES(ma60),
 		srsi = VALUES(srsi),
 		upmacd = VALUES(upmacd),
 		downmacd = VALUES(downmacd),
 		xupmacd := VALUES(xupmacd),
 		xdownmacd := VALUES(xdownmacd)
-	`, symbol, lastTime, lastEMA25, lastEMA50, lastKLine, UpMACD, DownMACD, XUpMACD, XDownMACD)
+	`, symbol, lastTime, lastEMA25, lastEMA50, ma60, lastKLine, UpMACD, DownMACD, XUpMACD, XDownMACD)
 		if err != nil {
 			log.Printf("写入 EMA25 出错 %s: %v", symbol, err)
 		}
@@ -107,4 +109,13 @@ func GetMACDM5FromDB(db *sql.DB, symbol string) (upmacd, downmacd, xupmacd, xdow
 		return false, false, false, false
 	}
 	return upmacd, downmacd, xupmacd, xdownmacd
+}
+
+func GetMA60FromDB(db *sql.DB, symbol string) (ma60 float64) {
+	err := db.QueryRow("SELECT ma60 FROM symbol_ema_5min WHERE symbol = ?", symbol).Scan(&ma60)
+	if err != nil {
+		log.Printf("查询 MA60 失败 %s: %v", symbol, err)
+		return 0
+	}
+	return ma60
 }

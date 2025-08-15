@@ -90,6 +90,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					ema25M15, ema50M15, _ := Get15MEMAFromDB(db, sym)
 					ema25H1, ema50H1 := Get1HEMAFromDB(db, sym)
 					ema25M5, ema50M5 := Get5MEMAFromDB(db, sym)
+					ma60M5 := GetMA60FromDB(db, sym)
 
 					//动能模型
 					var TrendUpH1, TrendUpM15, TrendDOWNH1, TrendDOWNM15 bool
@@ -103,17 +104,13 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db *sql.DB, wait_sucess_
 					var BuyMACDM5, SellMACDM5 bool
 					M5UPEMA := ema25M5 > ema50M5
 					M5DOWNEMA := ema25M5 < ema50M5
-					if M5UPEMA && price > ema25M5 && UpMACDM5 { //金叉浅回调
+					if M5UPEMA && UpMACDM5 { //回调
 						BuyMACDM5 = true
-					} else if M5UPEMA && price < ema25M5 && XUpMACDM5 { //金叉深回调
+					} else if M5DOWNEMA && price > ma60M5 && XUpMACDM5 { //反转
 						BuyMACDM5 = true
-					} else if M5DOWNEMA && price > ema25M5 && XUpMACDM5 { //死叉反转
-						BuyMACDM5 = true
-					} else if M5DOWNEMA && price < ema25M5 && DownMACDM5 {
+					} else if M5DOWNEMA && DownMACDM5 { //回调
 						SellMACDM5 = true
-					} else if M5DOWNEMA && price > ema25M5 && XDownMACDM5 {
-						SellMACDM5 = true
-					} else if M5UPEMA && price < ema25M5 && XDownMACDM5 {
+					} else if M5UPEMA && price < ma60M5 && XDownMACDM5 { //反转
 						SellMACDM5 = true
 					} else {
 						BuyMACDM5 = false
