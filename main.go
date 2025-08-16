@@ -248,13 +248,13 @@ func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types
 	var BuyMACDM5, SellMACDM5 bool
 	M5UPEMA := ema25M5 > ema50M5
 	M5DOWNEMA := ema25M5 < ema50M5
-	if M5UPEMA && UpMACDM5 { //回调
+	if M5UPEMA && UpMACDM5 && ma60M5 < ema25M5 { //回调
 		BuyMACDM5 = true
-	} else if M5DOWNEMA && price > ma60M5 && XUpMACDM5 { //反转
+	} else if M5DOWNEMA && price > ma60M5 && XUpMACDM5 && ma60M5 < ema25M5 { //反转
 		BuyMACDM5 = true
-	} else if M5DOWNEMA && DownMACDM5 { //回调
+	} else if M5DOWNEMA && DownMACDM5 && ma60M5 > ema25M5 { //回调
 		SellMACDM5 = true
-	} else if M5UPEMA && price < ma60M5 && XDownMACDM5 { //反转
+	} else if M5UPEMA && price < ma60M5 && XDownMACDM5 && ma60M5 > ema25M5 { //反转
 		SellMACDM5 = true
 	} else {
 		BuyMACDM5 = false
