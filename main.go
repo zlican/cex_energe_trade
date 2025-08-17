@@ -14,9 +14,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/adshao/go-binance/v2"
@@ -54,7 +56,7 @@ var (
 		"FXSUSDT", "DOGEUSDT", "SOLUSDT", "VINEUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
-	db             *sql.DB
+	db_trend       *sql.DB
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	betrend        types.BETrend
 )
@@ -89,14 +91,13 @@ func main() {
 
 	fmt.Println(volumeCache.SymbolsAbove(float64(limitVolume)))
 
-	model.InitDB()
-	db = model.DB
+	model.InitDBTrend()
+	db_trend = model.DBTrend
 
-	// 立即执行一次
-	utils.Update1hEMA25ToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
-	utils.Update15MEMAToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
-	utils.Update5MEMAToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
-	// runScan 立即执行一次，并在 minute%15==0 的时间对齐后每15分钟执行一次
+	if db_trend == nil {
+		log.Fatal("db_trend 初始化失败，DBTrend 为空")
+	}
+
 	go func() {
 		progressLogger.Printf("[runScan] 首次立即执行: %s", time.Now().Format("15:04:05"))
 		if err := runScan(client); err != nil {
@@ -113,7 +114,6 @@ func main() {
 
 		time.AfterFunc(delay, func() {
 			progressLogger.Printf("[runScan] 对齐执行: %s", time.Now().Format("15:04:05"))
-			utils.Update15MEMAToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
 			if err := runScan(client); err != nil {
 				progressLogger.Printf("对齐 runScan 出错: %v", err)
 			}
@@ -122,7 +122,6 @@ func main() {
 			for t := range ticker.C {
 				progressLogger.Printf("[runScan] 每15分钟触发: %s", t.Format("15:04:05"))
 				go func() {
-					utils.Update15MEMAToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
 					if err := runScan(client); err != nil {
 						progressLogger.Printf("周期 runScan 出错: %v", err)
 					}
@@ -131,29 +130,12 @@ func main() {
 		})
 	}()
 	//开启等待区
-	go utils.WaitEnerge(waitChan, db, wait_energe_botToken, chatID, client, klinesCount, energe_waiting_botToken)
-	last1h := time.Time{}
-	last5m := time.Time{}
+	go utils.WaitEnerge(waitChan, db_trend, wait_energe_botToken, chatID, client, klinesCount, energe_waiting_botToken)
 
-	for {
-		now := time.Now()
-		time.Sleep(time.Until(now.Truncate(time.Second).Add(1 * time.Second)))
-
-		minute := now.Minute()
-		second := now.Second()
-
-		if minute == 0 && now.Sub(last1h) >= time.Hour {
-			last1h = now
-			progressLogger.Printf("整点 %02d:00，执行 Update1hEMA25ToDB", now.Hour())
-			go utils.Update1hEMA25ToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
-		}
-
-		if minute%5 == 0 && second == 0 && now.Sub(last5m) >= 5*time.Minute {
-			last5m = now
-			progressLogger.Printf("每5分钟触发，执行 Update5MEMAToDB")
-			go utils.Update5MEMAToDB(client, db, float64(limitVolume), klinesCount, volumeCache, slipCoin)
-		}
-	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+	log.Println("收到退出信号，程序结束")
 }
 
 /* ====================== 核心扫描 ====================== */
@@ -169,12 +151,6 @@ func runScan(client *futures.Client) error {
 	}
 	symbols = volumeCache.SymbolsAbove(float64(limitVolume))
 	progressLogger.Printf("USDT 交易对数量: %d", len(symbols))
-
-	// ---------- 2. 获取趋势 ----------
-	betrend = types.BETrend{
-		BTC: utils.GetBTCTrend(db),
-		ETH: utils.GetETHTrend(db),
-	}
 
 	// ---------- 3. 并发处理 ----------
 	var (
@@ -195,7 +171,7 @@ func runScan(client *futures.Client) error {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			ind, ok := analyseSymbol(client, sym, "15m", db)
+			ind, ok := analyseSymbol(sym, db_trend)
 			if ok {
 				resMu.Lock()
 				results = append(results, ind)
@@ -218,94 +194,59 @@ func runScan(client *futures.Client) error {
 	})
 
 	// ---------- 4. 推送到 Telegram ----------
-	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID, volumeCache, db, betrend)
+	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID, volumeCache)
 }
 
 /* ====================== 单币分析 ====================== */
 
-func analyseSymbol(client *futures.Client, symbol, tf string, db *sql.DB) (types.CoinIndicator, bool) {
+func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) {
 
-	_, _, closes, err := utils.GetKlinesByAPI(client, symbol, tf, klinesCount)
-	if err != nil || len(closes) < 2 {
-		return types.CoinIndicator{}, false
-	}
+	MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
+	MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
+	MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
+	//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
+	//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
+	//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
-	price := closes[len(closes)-2]
-	ema25M15, ema50M15, _ := utils.Get15MEMAFromDB(db, symbol)
-	ema25H1, ema50H1 := utils.Get1HEMAFromDB(db, symbol)
-	ema25M5, ema50M5 := utils.Get5MEMAFromDB(db, symbol)
-	ma60M5 := utils.GetMA60FromDB(db, symbol)
-
-	//动能模型
-	var TrendUpH1, TrendUpM15, TrendDOWNH1, TrendDOWNM15 bool
-	TrendUpH1 = price > ema25H1 && ema25H1 > ema50H1
-	TrendDOWNH1 = price < ema25H1 && ema25H1 < ema50H1
-	TrendUpM15 = price > ema25M15 && ema25M15 > ema50M15
-	TrendDOWNM15 = price < ema25M15 && ema25M15 < ema50M15
-
-	//MACD模型
-	UpMACDM5, DownMACDM5, XUpMACDM5, XDownMACDM5 := utils.GetMACDM5FromDB(db, symbol)
-	var BuyMACDM5, SellMACDM5 bool
-	M5UPEMA := ema25M5 > ema50M5
-	M5DOWNEMA := ema25M5 < ema50M5
-	if M5UPEMA && UpMACDM5 && ma60M5 < ema25M5 { //回调
-		BuyMACDM5 = true
-	} else if M5DOWNEMA && price > ma60M5 && XUpMACDM5 && ma60M5 < ema25M5 { //反转
-		BuyMACDM5 = true
-	} else if M5DOWNEMA && DownMACDM5 && ma60M5 > ema25M5 { //回调
-		SellMACDM5 = true
-	} else if M5UPEMA && price < ma60M5 && XDownMACDM5 && ma60M5 > ema25M5 { //反转
-		SellMACDM5 = true
-	} else {
-		BuyMACDM5 = false
-		SellMACDM5 = false
-	}
-
-	if !TrendDOWNH1 && !TrendDOWNM15 && !TrendUpH1 && !TrendUpM15 {
-		progressLogger.Printf("奇点 触发: %s %.2f", symbol, price)
+	if MACDH1 == "RANGE" && MACDM15 == "RANGE" {
+		progressLogger.Printf("奇点 触发: %s", symbol)
 		status := "Wait"
-		if BuyMACDM5 {
+		if MACDM5 == "BUYMACD" {
 			status = "FomoBuy"
-		} else if SellMACDM5 {
+		} else if MACDM5 == "SELLMACD" {
 			status = "FomoSell"
 		}
 		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			Status:       status,
-			Operation:    "Singu",
+			Symbol:    symbol,
+			Status:    status,
+			Operation: "Singu",
 		}, true
 	}
 
 	// ===== 模型1 ： Fomo模型  =====
-	if !TrendDOWNH1 && !TrendDOWNM15 {
-		progressLogger.Printf("Fomo UP 触发: %s %.2f", symbol, price)
+	if MACDH1 == "BUYMACD" && !(MACDM15 == "SELLMACD") {
+		progressLogger.Printf("Fomo UP 触发: %s", symbol)
 		status := "Wait"
-		if BuyMACDM5 {
+		if MACDM5 == "BUYMACD" {
 			status = "FomoBuy"
 		}
 		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			Status:       status,
-			Operation:    "FomoBuy",
+			Symbol:    symbol,
+			Status:    status,
+			Operation: "FomoBuy",
 		}, true
 	}
 
-	if !TrendUpH1 && !TrendUpM15 {
-		progressLogger.Printf("Fomo DOWN 触发: %s %.2f", symbol, price)
+	if MACDH1 == "SELLMACD" && !(MACDM15 == "BUYMACD") {
+		progressLogger.Printf("Fomo DOWN 触发: %s", symbol)
 		status := "Wait"
-		if SellMACDM5 {
+		if MACDM5 == "SELLMACD" {
 			status = "FomoSell"
 		}
 		return types.CoinIndicator{
-			Symbol:       symbol,
-			Price:        price,
-			TimeInternal: tf,
-			Status:       status,
-			Operation:    "FomoSell",
+			Symbol:    symbol,
+			Status:    status,
+			Operation: "FomoSell",
 		}, true
 	}
 

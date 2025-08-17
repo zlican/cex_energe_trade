@@ -26,7 +26,6 @@ func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalP
 		return false
 	}
 
-	B := histogram[len(histogram)-3]
 	C := histogram[len(histogram)-2]
 	D := histogram[len(histogram)-1]
 
@@ -34,8 +33,8 @@ func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalP
 	if D > 0 {
 		return true
 	}
-	// 条件二：左两个不是下跌就行
-	if !(B > C) {
+	// 条件二：在涨
+	if D > C {
 		return true
 	}
 	return false
@@ -71,7 +70,6 @@ func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPer
 		return false
 	}
 
-	B := histogram[len(histogram)-3]
 	C := histogram[len(histogram)-2]
 	D := histogram[len(histogram)-1]
 
@@ -79,8 +77,8 @@ func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPer
 	if D < 0 {
 		return true
 	}
-	// 条件二：两根不是连涨就行
-	if !(B < C) {
+	// 条件二：在跌
+	if D < C {
 		return true
 	}
 	return false

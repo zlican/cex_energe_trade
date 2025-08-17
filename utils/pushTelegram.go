@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"database/sql"
 	"energe/telegram"
 	"fmt"
 	"log"
@@ -11,7 +10,7 @@ import (
 	"energe/types"
 )
 
-func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botToken, chatID string, volumeCache *types.VolumeCache, db *sql.DB, betrend types.BETrend) error {
+func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botToken, chatID string, volumeCache *types.VolumeCache) error {
 	now := time.Now().Format("2006-01-02 15:04")
 	var msgBuilder strings.Builder
 
