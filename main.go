@@ -224,7 +224,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	}
 
 	// ===== 模型1 ： Fomo模型  =====
-	if MACDH1 == "BUYMACD" && !(MACDM15 == "SELLMACD") {
+	if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" {
 		progressLogger.Printf("Fomo UP 触发: %s", symbol)
 		status := "Wait"
 		if MACDM5 == "BUYMACD" {
@@ -237,7 +237,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 		}, true
 	}
 
-	if MACDH1 == "SELLMACD" && !(MACDM15 == "BUYMACD") {
+	if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" {
 		progressLogger.Printf("Fomo DOWN 触发: %s", symbol)
 		status := "Wait"
 		if MACDM5 == "SELLMACD" {

@@ -89,7 +89,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 					switch token.Operation {
 					case "FomoBuy":
-						if MACDH1 == "BUYMACD" && !(MACDM15 == "SELLMACD") && MACDM5 == "BUYMACD" {
+						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
@@ -101,7 +101,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "FomoSell":
-						if MACDH1 == "SELLMACD" && !(MACDM15 == "BUYMACD") && MACDM5 == "SELLMACD" {
+						if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
@@ -113,11 +113,11 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "Singu":
-						if MACDH1 == "BUYMACD" && !(MACDM15 == "SELLMACD") && MACDM5 == "BUYMACD" {
+						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-						} else if MACDH1 == "SELLMACD" && !(MACDM15 == "BUYMACD") && MACDM5 == "SELLMACD" {
+						} else if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 							msg := fmt.Sprintf("监控回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
