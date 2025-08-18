@@ -61,8 +61,8 @@ func Update15MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, k
 		lastTime := klines[len(klines)-1].CloseTime
 		_, kLine, _ := StochRSIFromClose(closes, 14, 14, 3, 3)
 		lastKLine := kLine[len(kLine)-1]
-		UpMACD := IsAboutToGoldenCross(closes, 6, 13, 5)
-		DownMACD := IsAboutToDeadCross(closes, 6, 13, 5)
+		UpMACD := IsGoldenCross(closes, 6, 13, 5)
+		DownMACD := IsDeadCross(closes, 6, 13, 5)
 		GT_EMA25 := price > lastEMA25
 
 		// 写入数据库（UPSERT）

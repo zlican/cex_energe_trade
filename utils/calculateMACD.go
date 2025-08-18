@@ -17,23 +17,31 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 }
 
 // 判断是否做多
-func IsAboutToGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+func IsGoldenCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 4 {
+	if len(histogram) < 5 {
 		return false
 	}
 
-	C := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-1]
+	A := histogram[len(histogram)-5]
+	B := histogram[len(histogram)-4]
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
 
-	// 条件一：最新柱为正
-	if D > 0 {
+	// 一：新正旧负
+	if D < 0 && E > 0 {
 		return true
 	}
-	// 条件二：在涨
+
+	// 二：旧正 且不是4连降
+	if D > 0 && !(A > 0 && B > 0 && C > 0 && D > 0 && A > B && B > C && C > D) {
+		return true
+	}
+	// 三：（皆负）旧两个不是下跌就行
 	if D > C {
 		return true
 	}
@@ -47,37 +55,52 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 4 {
+	if len(histogram) < 5 {
 		return false
 	}
 
-	D := histogram[len(histogram)-1]
+	A := histogram[len(histogram)-5]
+	B := histogram[len(histogram)-4]
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
 
-	// 条件一：最新柱为正
-	if D > 0 {
+	// 一：新正旧负
+	if D < 0 && E > 0 {
+		return true
+	}
+	// 二：旧正 且不是4连降
+	if D > 0 && !(A > 0 && B > 0 && C > 0 && D > 0 && A > B && B > C && C > D) {
 		return true
 	}
 	return false
 }
 
 // 判断是否做空
-func IsAboutToDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+func IsDeadCross(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
 	}
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 4 {
+	if len(histogram) < 5 {
 		return false
 	}
+	A := histogram[len(histogram)-5]
+	B := histogram[len(histogram)-4]
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
 
-	C := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-1]
-
-	// 条件一：最新柱为负（直接看空）
-	if D < 0 {
+	//一： 新负旧正
+	if D > 0 && E < 0 {
 		return true
 	}
-	// 条件二：在跌
+
+	// 二：旧负 且不是4连涨
+	if D < 0 && !(A < 0 && B < 0 && C < 0 && D < 0 && A < B && B < C && C < D) {
+		return true
+	}
+	// 三：（皆正）旧两根不是连涨就行
 	if D < C {
 		return true
 	}
@@ -91,14 +114,21 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 4 {
+	if len(histogram) < 5 {
 		return false
 	}
 
-	D := histogram[len(histogram)-1]
-
-	// 条件一：最新柱为负（直接看空）
-	if D < 0 {
+	A := histogram[len(histogram)-5]
+	B := histogram[len(histogram)-4]
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
+	//一： 新负旧正
+	if D > 0 && E < 0 {
+		return true
+	}
+	// 二：旧负 且不是4连涨
+	if D < 0 && !(A < 0 && B < 0 && C < 0 && D < 0 && A < B && B < C && C < D) {
 		return true
 	}
 	return false

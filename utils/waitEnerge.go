@@ -90,10 +90,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					switch token.Operation {
 					case "FomoBuy":
 						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
+							msg := fmt.Sprintf("做多回响：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-						} else if MACDM15 == "SELLMACD" {
+						} else if MACDH1 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -102,10 +102,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						}
 					case "FomoSell":
 						if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("监控回响：🔴%s", sym)
+							msg := fmt.Sprintf("做空回响：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
-						} else if MACDM15 == "BUYMACD" {
+						} else if MACDH1 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -113,15 +113,15 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "Singu":
-						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("监控回响：🟢%s ", sym)
+						if MACDH1 == "RANGE" && MACDM5 == "BUYMACD" && MACDM15 != "SELLMACD" {
+							msg := fmt.Sprintf("奇点做多回响：🟣🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🟢 等待成功 Buy : %s", sym)
-						} else if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("监控回响：🔴%s", sym)
+						} else if MACDH1 == "RANGE" && MACDM5 == "SELLMACD" && MACDM15 != "BUYMACD" {
+							msg := fmt.Sprintf("奇点做空回响：🟣🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 							log.Printf("🔴 等待成功 Sell : %s", sym)
-						} else if (MACDM15 == "SELLMACD") || (MACDM15 == "BUYMACD") {
+						} else if MACDH1 != "RANGE" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -153,28 +153,26 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 
 		waitMu.Lock()
 		for _, coin := range newResults {
-			if coin.Status == "Wait" {
-				exist, exists := waitList[coin.Symbol]
-				if !exists {
-					waitList[coin.Symbol] = waitToken{
-						Symbol:    coin.Symbol,
-						Operation: coin.Operation,
-						Status:    coin.Status,
-						AddedAt:   now,
-					}
-					log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
-					newAdded = true
+			exist, exists := waitList[coin.Symbol]
+			if !exists {
+				waitList[coin.Symbol] = waitToken{
+					Symbol:    coin.Symbol,
+					Operation: coin.Operation,
+					Status:    coin.Status,
+					AddedAt:   now,
 				}
-				if exists && exist.Operation != coin.Operation {
-					waitList[coin.Symbol] = waitToken{
-						Symbol:    coin.Symbol,
-						Operation: coin.Operation,
-						Status:    coin.Status,
-						AddedAt:   now,
-					}
-					log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
-					newAdded = true
+				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
+				newAdded = true
+			}
+			if exists && exist.Operation != coin.Operation {
+				waitList[coin.Symbol] = waitToken{
+					Symbol:    coin.Symbol,
+					Operation: coin.Operation,
+					Status:    coin.Status,
+					AddedAt:   now,
 				}
+				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
+				newAdded = true
 			}
 		}
 		waitMu.Unlock()
