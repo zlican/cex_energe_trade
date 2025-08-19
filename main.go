@@ -34,7 +34,7 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 5000000000                                       //50亿 USDT
+	limitVolume               = 300000000                                        //3亿 USDT
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -47,13 +47,13 @@ var (
 	slipCoin    = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "AGIXUSDT",
 		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
 		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
-		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "PNUTUSDT", "HYPEUSDT",
+		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "PNUTUSDT",
 		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT", "TIAUSDT", "ETHFIUSDT",
 		"WLDUSDT", "FILUSDT", "TAOUSDT", "CRVUSDT", "FETUSDT", "INJUSDT", "1000BONKUSDC",
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "SOLUSDT", "VINEUSDT"} // 想排除的币放这里
+		"FXSUSDT", "DOGEUSDT", "VINEUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -210,7 +210,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 
 	if MACDH1 == "RANGE" {
 		progressLogger.Printf("奇点 触发: %s", symbol)
-		status := "Singu"
+		status := "Wait"
 		return types.CoinIndicator{
 			Symbol:    symbol,
 			Status:    status,
@@ -222,7 +222,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	if MACDH1 == "BUYMACD" {
 		progressLogger.Printf("Fomo UP 触发: %s", symbol)
 		status := "Wait"
-		if MACDM5 == "BUYMACD" && MACDM15 == "BUYMACD" {
+		if MACDM15 == "BUYMACD" && MACDM5 != "SELLMACD" {
 			status = "FomoBuy"
 		}
 		return types.CoinIndicator{
@@ -235,7 +235,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	if MACDH1 == "SELLMACD" {
 		progressLogger.Printf("Fomo DOWN 触发: %s", symbol)
 		status := "Wait"
-		if MACDM5 == "SELLMACD" && MACDM15 == "SELLMACD" {
+		if MACDM15 == "SELLMACD" && MACDM5 != "BUYMACD" {
 			status = "FomoSell"
 		}
 		return types.CoinIndicator{
