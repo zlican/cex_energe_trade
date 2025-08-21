@@ -208,7 +208,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
 	//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
-	if MACDH1 == "RANGE" {
+	if MACDH1 == "UPRANGE" || MACDH1 == "DOWNRANGE" {
 		progressLogger.Printf("奇点 触发: %s", symbol)
 		status := "Wait"
 		return types.CoinIndicator{
@@ -222,7 +222,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	if MACDH1 == "BUYMACD" {
 		progressLogger.Printf("Fomo UP 触发: %s", symbol)
 		status := "Wait"
-		if MACDM15 == "BUYMACD" && MACDM5 != "SELLMACD" {
+		if (MACDM15 == "BUYMACD" || MACDM15 == "UPRANGE") && (MACDM5 == "BUYMACD" || MACDM5 == "UPRANGE") {
 			status = "FomoBuy"
 		}
 		return types.CoinIndicator{
@@ -235,7 +235,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	if MACDH1 == "SELLMACD" {
 		progressLogger.Printf("Fomo DOWN 触发: %s", symbol)
 		status := "Wait"
-		if MACDM15 == "SELLMACD" && MACDM5 != "BUYMACD" {
+		if (MACDM15 == "SELLMACD" || MACDM15 == "DOWNRANGE") && (MACDM5 == "SELLMACD" || MACDM5 == "DOWNRANGE") {
 			status = "FomoSell"
 		}
 		return types.CoinIndicator{

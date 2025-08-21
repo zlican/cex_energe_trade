@@ -89,8 +89,8 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 					switch token.Operation {
 					case "FomoBuy":
-						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 != "SELLMACD" {
-							msg := fmt.Sprintf("🟢无压力中时做多：🟢%s ", sym)
+						if MACDH1 == "BUYMACD" && (MACDM15 == "BUYMACD" || MACDM15 == "UPRANGE") && (MACDM5 == "BUYMACD" || MACDM5 == "UPRANGE") {
+							msg := fmt.Sprintf("🟢FOMO做多：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 						} else if MACDH1 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
@@ -100,8 +100,8 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "FomoSell":
-						if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 != "BUYMACD" {
-							msg := fmt.Sprintf("🔴无压力中时做空：🔴%s", sym)
+						if MACDH1 == "SELLMACD" && (MACDM15 == "SELLMACD" || MACDM15 == "DOWNRANGE") && (MACDM5 == "SELLMACD" || MACDM5 == "DOWNRANGE") {
+							msg := fmt.Sprintf("🔴FOMO做空：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 						} else if MACDH1 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
@@ -111,19 +111,13 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "Singu":
-						if MACDH1 == "RANGE" && MACDM15 == "BUYMACD" && MACDM5 != "SELLMACD" {
-							msg := fmt.Sprintf("🟣有压力中时做多：🟢%s ", sym)
+						if MACDH1 == "UPRANGE" && MACDM15 == "UPRANGE" && (MACDM5 == "SELLMACD" || MACDM5 == "DOWNRANGE") {
+							msg := fmt.Sprintf("🟣反转做空：🔴%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 == "RANGE" && MACDM15 == "SELLMACD" && MACDM5 != "BUYMACD" {
-							msg := fmt.Sprintf("🟣有压力中时做空：🔴%s", sym)
+						} else if MACDH1 == "DOWNRANGE" && MACDM15 == "DOWNRANGE" && (MACDM5 == "BUYMACD" || MACDM5 == "UPRANGE") {
+							msg := fmt.Sprintf("🟣反转做多：🟢%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 == "RANGE" && MACDM5 == "SELLMACD" && MACDM15 != "BUYMACD" {
-							msg := fmt.Sprintf("🟣有压力小时做空：🔴%s", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 == "RANGE" && MACDM5 == "BUYMACD" && MACDM15 != "SELLMACD" {
-							msg := fmt.Sprintf("🟣有压力小时做多：🟢%s ", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 != "RANGE" {
+						} else if MACDH1 != "UPRANGE" && MACDH1 != "DOWNRANGE" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
