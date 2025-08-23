@@ -11,7 +11,6 @@ import (
 )
 
 func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botToken, chatID string, volumeCache *types.VolumeCache) error {
-	now := time.Now().Format("2006-01-02 15:04")
 	var msgBuilder strings.Builder
 
 	var filteredResults []types.CoinIndicator
@@ -23,7 +22,7 @@ func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botT
 
 	// 判断是否为空
 	if len(filteredResults) == 0 {
-		msgBuilder.WriteString(fmt.Sprintf("（无）Time：%s\n", now))
+		return nil
 	}
 
 	// 操作与前缀符号的映射

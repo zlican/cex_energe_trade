@@ -106,7 +106,7 @@ func main() {
 
 		// 计算下一次对齐时间
 		now := time.Now()
-		minutesToNext := 15 - (now.Minute() % 15)
+		minutesToNext := 5 - (now.Minute() % 5)
 		nextAligned := now.Truncate(time.Minute).Add(time.Duration(minutesToNext) * time.Minute).Truncate(time.Minute)
 
 		delay := time.Until(nextAligned)
@@ -118,9 +118,9 @@ func main() {
 				progressLogger.Printf("对齐 runScan 出错: %v", err)
 			}
 
-			ticker := time.NewTicker(15 * time.Minute)
+			ticker := time.NewTicker(5 * time.Minute)
 			for t := range ticker.C {
-				progressLogger.Printf("[runScan] 每15分钟触发: %s", t.Format("15:04:05"))
+				progressLogger.Printf("[runScan] 每5分钟触发: %s", t.Format("15:04:05"))
 				go func() {
 					if err := runScan(client); err != nil {
 						progressLogger.Printf("周期 runScan 出错: %v", err)
@@ -201,30 +201,16 @@ func runScan(client *futures.Client) error {
 
 func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) {
 
-	MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
-	MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
+	//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
+	//MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
 	MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
 	//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
 	//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
 	//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
-	if MACDH1 == "RANGE" {
-		progressLogger.Printf("奇点 触发: %s", symbol)
-		status := "Wait"
-		return types.CoinIndicator{
-			Symbol:    symbol,
-			Status:    status,
-			Operation: "Singu",
-		}, true
-	}
-
 	// ===== 模型1 ： Fomo模型  =====
 	if MACDH1 == "BUYMACD" {
-		progressLogger.Printf("Fomo UP 触发: %s", symbol)
 		status := "Wait"
-		if MACDM15 == "BUYMACD" && MACDM5 != "SELLMACD" {
-			status = "FomoBuy"
-		}
 		return types.CoinIndicator{
 			Symbol:    symbol,
 			Status:    status,
@@ -233,11 +219,7 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	}
 
 	if MACDH1 == "SELLMACD" {
-		progressLogger.Printf("Fomo DOWN 触发: %s", symbol)
 		status := "Wait"
-		if MACDM15 == "SELLMACD" && MACDM5 != "BUYMACD" {
-			status = "FomoSell"
-		}
 		return types.CoinIndicator{
 			Symbol:    symbol,
 			Status:    status,
