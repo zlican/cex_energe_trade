@@ -208,6 +208,15 @@ func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) 
 	//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
 	//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
+	if MACDH1 == "RANGE" {
+		status := "Wait"
+		return types.CoinIndicator{
+			Symbol:    symbol,
+			Status:    status,
+			Operation: "BUYANDSELL",
+		}, true
+	}
+
 	// ===== 模型1 ： Fomo模型  =====
 	if MACDH1 == "BUYMACD" {
 		status := "Wait"

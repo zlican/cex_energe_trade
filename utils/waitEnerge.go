@@ -42,6 +42,8 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "🟢🟢"
 		} else if token.Operation == "FomoSell" {
 			emoje = "🔴🔴"
+		} else if token.Operation == "BUYANDSELL" {
+			emoje = "🟣🟣"
 		} else {
 			emoje = "-"
 		}
@@ -86,6 +88,20 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
 					//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 					switch token.Operation {
+					case "BUYANDSELL":
+						if MACDH1 == "RANGE" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+							msg := fmt.Sprintf("🟣做多：🟢%s ", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+						} else if MACDH1 == "RANGE" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+							msg := fmt.Sprintf("🟣做空：🔴%s", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+						} else if MACDH1 != "BUYANDSELL" {
+							log.Printf("❌ Wait失败 Buy : %s", sym)
+							waitMu.Lock()
+							delete(waitList, sym)
+							waitMu.Unlock()
+							changed = true
+						}
 					case "FomoBuy":
 						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("🟢FOMO做多：🟢%s ", sym)
