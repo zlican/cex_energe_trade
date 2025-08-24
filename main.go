@@ -53,7 +53,7 @@ var (
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "VINEUSDT"} // 想排除的币放这里
+		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -171,7 +171,7 @@ func runScan(client *futures.Client) error {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			ind, ok := analyseSymbol(sym, db_trend)
+			ind, ok := analyseSymbol(client, sym, db_trend)
 			if ok {
 				resMu.Lock()
 				results = append(results, ind)
@@ -199,41 +199,94 @@ func runScan(client *futures.Client) error {
 
 /* ====================== 单币分析 ====================== */
 
-func analyseSymbol(symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) {
+func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) {
 
-	//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
-	//MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
-	MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
-	//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
-	//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
-	//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
+	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
+		//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
+		//MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
+		MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
+		//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
+		//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
+		//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
-	if MACDH1 == "RANGE" {
-		status := "Wait"
-		return types.CoinIndicator{
-			Symbol:    symbol,
-			Status:    status,
-			Operation: "BUYANDSELL",
-		}, true
-	}
+		if MACDH1 == "RANGE" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BEBUYANDSELL",
+			}, true
+		}
 
-	// ===== 模型1 ： Fomo模型  =====
-	if MACDH1 == "BUYMACD" {
-		status := "Wait"
-		return types.CoinIndicator{
-			Symbol:    symbol,
-			Status:    status,
-			Operation: "FomoBuy",
-		}, true
-	}
+		// ===== 模型1 ： Fomo模型  =====
+		if MACDH1 == "BUYMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BEBUY",
+			}, true
+		}
 
-	if MACDH1 == "SELLMACD" {
-		status := "Wait"
-		return types.CoinIndicator{
-			Symbol:    symbol,
-			Status:    status,
-			Operation: "FomoSell",
-		}, true
+		if MACDH1 == "SELLMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BESELL",
+			}, true
+		}
+
+	} else {
+		var MACDH1, MACDM15 string
+		_, _, closesH1, _ := utils.GetKlinesByAPI(client, symbol, "1h", 200)
+		goldenUP := utils.IsGoldenUP(closesH1, 6, 13, 5)
+		deadDOWN := utils.IsDeadDOWN(closesH1, 6, 13, 5)
+		if goldenUP && deadDOWN {
+			MACDH1 = "RANGE"
+		} else if goldenUP {
+			MACDH1 = "BUYMACD"
+		} else if deadDOWN {
+			MACDH1 = "SELLMACD"
+		} else {
+			return types.CoinIndicator{}, false
+		}
+		_, _, closesM15, _ := utils.GetKlinesByAPI(client, symbol, "15m", 200)
+		DEAUP := utils.IsDEAUP(closesM15, 6, 13, 5)
+		DEADOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
+		price := closesM15[len(closesM15)-1]
+		ema25M15 := utils.CalculateEMA(closesM15, 25)
+		if price > ema25M15[len(ema25M15)-1] && DEAUP {
+			MACDM15 = "BUYMACD"
+		} else if price < ema25M15[len(ema25M15)-1] && DEADOWN {
+			MACDM15 = "SELLMACD"
+		} else {
+			return types.CoinIndicator{}, false
+		}
+		_, _, closesM5, _ := utils.GetKlinesByAPI(client, symbol, "5m", 200)
+		ma60 := utils.CalculateMA(closesM5, 60)
+		ema25 := utils.CalculateEMA(closesM5, 25)
+		if price > ma60 && price > ema25[len(ema25)-1] {
+			if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
+				status := "Wait"
+				return types.CoinIndicator{
+					Symbol:    symbol,
+					Status:    status,
+					Operation: "OTBUY",
+				}, true
+			}
+		} else if price < ma60 && price < ema25[len(ema25)-1] {
+			if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
+				status := "Wait"
+				return types.CoinIndicator{
+					Symbol:    symbol,
+					Status:    status,
+					Operation: "OTSELL",
+				}, true
+			}
+		} else {
+			return types.CoinIndicator{}, false
+		}
 	}
 
 	return types.CoinIndicator{}, false

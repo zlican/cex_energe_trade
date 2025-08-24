@@ -38,11 +38,11 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	var emoje string
 
 	for _, token := range waitList {
-		if token.Operation == "FomoBuy" {
+		if token.Operation == "BEBUY" || token.Operation == "OTBUY" {
 			emoje = "🟢🟢"
-		} else if token.Operation == "FomoSell" {
+		} else if token.Operation == "BESELL" || token.Operation == "OTSELL" {
 			emoje = "🔴🔴"
-		} else if token.Operation == "BUYANDSELL" {
+		} else if token.Operation == "BEBUYANDSELL" {
 			emoje = "🟣🟣"
 		} else {
 			emoje = "-"
@@ -81,14 +81,30 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 				waitMu.Unlock()
 
 				for sym, token := range waitCopy {
-					MACDM5, _ := GetTrendResult(db_trend, sym, "5m")
-					MACDM15, _ := GetTrendResult(db_trend, sym, "15m")
-					MACDH1, _ := GetTrendResult(db_trend, sym, "1h")
-					//BuyMACDH4, _ := GetTrendResult(db, symbol, "4h")
-					//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
-					//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
+					var MACDM5, MACDM15, MACDH1 string
+					var ema25Now, ma60 float64
+
+					if sym == "BTCUSDT" || sym == "ETHUSDT" {
+						MACDM5, _ = GetTrendResult(db_trend, sym, "5m")
+						MACDM15, _ = GetTrendResult(db_trend, sym, "15m")
+						MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
+						//BuyMACDH4, _ := GetTrendResult(db, symbol, "4h")
+						//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
+						//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
+					} else {
+						_, _, closesM5, _ := GetKlinesByAPI(client, sym, "5m", 200)
+						price := closesM5[len(closesM5)-1]
+						ma60 = CalculateMA(closesM5, 60)
+						ema25 := CalculateEMA(closesM5, 25)
+						ema25Now = ema25[len(ema25)-1]
+						if price > ma60 && price > ema25Now {
+							MACDM5 = "BUYMACD"
+						} else if price < ma60 && price < ema25Now {
+							MACDM5 = "SELLMACD"
+						}
+					}
 					switch token.Operation {
-					case "BUYANDSELL":
+					case "BEBUYANDSELL":
 						if MACDH1 == "RANGE" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("🟣做多：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
@@ -102,9 +118,9 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							waitMu.Unlock()
 							changed = true
 						}
-					case "FomoBuy":
+					case "BEBUY":
 						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("🟢FOMO做多：🟢%s ", sym)
+							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 						} else if MACDH1 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
@@ -113,11 +129,33 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							waitMu.Unlock()
 							changed = true
 						}
-					case "FomoSell":
+					case "BESELL":
 						if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("🔴FOMO做空：🔴%s", sym)
+							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
 						} else if MACDH1 != "SELLMACD" {
+							log.Printf("❌ Wait失败 Sell : %s", sym)
+							waitMu.Lock()
+							delete(waitList, sym)
+							waitMu.Unlock()
+							changed = true
+						}
+					case "OTBUY":
+						if MACDM5 == "BUYMACD" {
+							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+						} else if ema25Now < ma60 {
+							log.Printf("❌ Wait失败 Sell : %s", sym)
+							waitMu.Lock()
+							delete(waitList, sym)
+							waitMu.Unlock()
+							changed = true
+						}
+					case "OTSELL":
+						if MACDM5 == "SELLMACD" {
+							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
+							telegram.SendMessage(wait_sucess_token, chatID, msg)
+						} else if ema25Now > ma60 {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)

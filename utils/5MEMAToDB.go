@@ -59,8 +59,8 @@ func Update5MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, kl
 		_, kLine, _ := StochRSIFromClose(closes, 14, 14, 3, 3)
 		lastKLine := kLine[len(kLine)-1]
 		//macd的存入
-		UpMACD := IsGoldenCross(closes, 6, 13, 5)
-		DownMACD := IsDeadCross(closes, 6, 13, 5)
+		UpMACD := false
+		DownMACD := false
 		XUpMACD := IsGolden(closes, 6, 13, 5)
 		XDownMACD := IsDead(closes, 6, 13, 5)
 		// 写入数据库（UPSERT）
