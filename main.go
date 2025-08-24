@@ -203,23 +203,14 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 
 	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
 		//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
-		//MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
+		MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
 		MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
 		//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
 		//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
 		//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
-		if MACDH1 == "RANGE" {
-			status := "Wait"
-			return types.CoinIndicator{
-				Symbol:    symbol,
-				Status:    status,
-				Operation: "BEBUYANDSELL",
-			}, true
-		}
-
 		// ===== 模型1 ： Fomo模型  =====
-		if MACDH1 == "BUYMACD" {
+		if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -228,7 +219,7 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 			}, true
 		}
 
-		if MACDH1 == "SELLMACD" {
+		if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,

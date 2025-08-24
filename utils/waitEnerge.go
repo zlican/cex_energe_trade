@@ -42,8 +42,6 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "🟢🟢"
 		} else if token.Operation == "BESELL" || token.Operation == "OTSELL" {
 			emoje = "🔴🔴"
-		} else if token.Operation == "BEBUYANDSELL" {
-			emoje = "🟣🟣"
 		} else {
 			emoje = "-"
 		}
@@ -81,13 +79,13 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 				waitMu.Unlock()
 
 				for sym, token := range waitCopy {
-					var MACDM5, MACDM15, MACDH1 string
+					var MACDM5, MACDM15 string
 					var ema25Now, ma60 float64
 
 					if sym == "BTCUSDT" || sym == "ETHUSDT" {
 						MACDM5, _ = GetTrendResult(db_trend, sym, "5m")
 						MACDM15, _ = GetTrendResult(db_trend, sym, "15m")
-						MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
+						//MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
 						//BuyMACDH4, _ := GetTrendResult(db, symbol, "4h")
 						//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
 						//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
@@ -102,27 +100,24 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						} else if price < ma60 && price < ema25Now {
 							MACDM5 = "SELLMACD"
 						}
+						_, _, closesM15, _ := GetKlinesByAPI(client, sym, "15m", 200)
+						DEAUP := IsDEAUP(closesM15, 6, 13, 5)
+						DEADOWN := IsDEADOWN(closesM15, 6, 13, 5)
+						ema25M15 := CalculateEMA(closesM15, 25)
+						if price > ema25M15[len(ema25M15)-1] && DEAUP {
+							MACDM15 = "BUYMACD"
+						} else if price < ema25M15[len(ema25M15)-1] && DEADOWN {
+							MACDM15 = "SELLMACD"
+						} else {
+							continue
+						}
 					}
 					switch token.Operation {
-					case "BEBUYANDSELL":
-						if MACDH1 == "RANGE" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("🟣做多：🟢%s ", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 == "RANGE" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("🟣做空：🔴%s", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 != "BUYANDSELL" {
-							log.Printf("❌ Wait失败 Buy : %s", sym)
-							waitMu.Lock()
-							delete(waitList, sym)
-							waitMu.Unlock()
-							changed = true
-						}
 					case "BEBUY":
-						if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+						if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 != "BUYMACD" {
+						} else if MACDM15 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Buy : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -130,10 +125,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "BESELL":
-						if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+						if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if MACDH1 != "SELLMACD" {
+						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -141,10 +136,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "OTBUY":
-						if MACDM5 == "BUYMACD" {
+						if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if ema25Now < ma60 {
+						} else if MACDM15 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
@@ -152,10 +147,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 							changed = true
 						}
 					case "OTSELL":
-						if MACDM5 == "SELLMACD" {
+						if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
 							telegram.SendMessage(wait_sucess_token, chatID, msg)
-						} else if ema25Now > ma60 {
+						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
