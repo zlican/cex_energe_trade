@@ -19,6 +19,7 @@ type waitToken struct {
 	Status              string
 	AddedAt             time.Time
 	LastPushedOperation string // 新增字段：记录最后一次推送的操作
+	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
 }
 
 var waitMu sync.Mutex
@@ -122,20 +123,34 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 								waitMu.Lock()
 								t := waitList[sym]
 								t.LastPushedOperation = "BEBUY"
+								t.LastInvalidPushed = false // 重置失效推送标志
 								waitList[sym] = t
 								waitMu.Unlock()
 							}
 						} else if MACDM15 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
-							delete(waitList, sym)
+							// 如果之前推送过买入信号，而且还没发过“失效”消息
+							t := waitList[sym]
+							if t.LastPushedOperation == "BEBUY" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								t.LastInvalidPushed = true
+								waitList[sym] = t
+							}
+							delete(waitList, sym) // 删除
 							waitMu.Unlock()
 							changed = true
 						} else {
 							log.Printf("❌ 信号失效，重置状态: %s", sym)
 							waitMu.Lock()
 							t := waitList[sym]
+							if t.LastPushedOperation == "BEBUY" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+							}
 							t.LastPushedOperation = "" // 清空，允许下次推送
+							t.LastInvalidPushed = true
 							waitList[sym] = t
 							waitMu.Unlock()
 						}
@@ -156,14 +171,27 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
-							delete(waitList, sym)
+							// 如果之前推送过买入信号，而且还没发过“失效”消息
+							t := waitList[sym]
+							if t.LastPushedOperation == "BESELL" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								t.LastInvalidPushed = true
+								waitList[sym] = t
+							}
+							delete(waitList, sym) // 删除
 							waitMu.Unlock()
 							changed = true
 						} else {
 							log.Printf("❌ 信号失效，重置状态: %s", sym)
 							waitMu.Lock()
 							t := waitList[sym]
+							if t.LastPushedOperation == "BESELL" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+							}
 							t.LastPushedOperation = "" // 清空，允许下次推送
+							t.LastInvalidPushed = true
 							waitList[sym] = t
 							waitMu.Unlock()
 						}
@@ -181,14 +209,27 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						} else if MACDM15 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
-							delete(waitList, sym)
+							// 如果之前推送过买入信号，而且还没发过“失效”消息
+							t := waitList[sym]
+							if t.LastPushedOperation == "OTBUY" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								t.LastInvalidPushed = true
+								waitList[sym] = t
+							}
+							delete(waitList, sym) // 删除
 							waitMu.Unlock()
 							changed = true
 						} else {
 							log.Printf("❌ 信号失效，重置状态: %s", sym)
 							waitMu.Lock()
 							t := waitList[sym]
+							if t.LastPushedOperation == "OTBUY" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+							}
 							t.LastPushedOperation = "" // 清空，允许下次推送
+							t.LastInvalidPushed = true
 							waitList[sym] = t
 							waitMu.Unlock()
 						}
@@ -208,14 +249,27 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
-							delete(waitList, sym)
+							// 如果之前推送过买入信号，而且还没发过“失效”消息
+							t := waitList[sym]
+							if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								t.LastInvalidPushed = true
+								waitList[sym] = t
+							}
+							delete(waitList, sym) // 删除
 							waitMu.Unlock()
 							changed = true
 						} else {
 							log.Printf("❌ 信号失效，重置状态: %s", sym)
 							waitMu.Lock()
 							t := waitList[sym]
+							if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
+								msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+							}
 							t.LastPushedOperation = "" // 清空，允许下次推送
+							t.LastInvalidPushed = true
 							waitList[sym] = t
 							waitMu.Unlock()
 						}
