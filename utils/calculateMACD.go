@@ -64,6 +64,10 @@ func IsGoldenUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 	if E > 0 {
 		return true
 	}
+	if D > 0 {
+		return true
+	}
+
 	if C < 0 && D < 0 && C < D {
 		return true
 	}
@@ -81,13 +85,20 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	if len(histogram) < 5 {
 		return false
 	}
-
+	D := histogram[len(histogram)-2]
 	E := histogram[len(histogram)-1]
 
-	return E > 0
+	if E > 0 {
+		return true
+	}
+	if D > 0 {
+		return true
+	}
+
+	return false
 }
 
-//为正
+//为负
 func IsDeadDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -105,6 +116,10 @@ func IsDeadDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 	if E < 0 {
 		return true
 	}
+	if D < 0 {
+		return true
+	}
+
 	if C > 0 && D > 0 && C > D {
 		return true
 	}
@@ -122,7 +137,16 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	if len(histogram) < 5 {
 		return false
 	}
-	return histogram[len(histogram)-1] < 0
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
+
+	if E < 0 {
+		return true
+	}
+	if D < 0 {
+		return true
+	}
+	return false
 }
 
 // 判断DEA趋势

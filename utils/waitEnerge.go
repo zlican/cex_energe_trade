@@ -14,10 +14,11 @@ import (
 )
 
 type waitToken struct {
-	Symbol    string
-	Operation string
-	Status    string
-	AddedAt   time.Time
+	Symbol              string
+	Operation           string
+	Status              string
+	AddedAt             time.Time
+	LastPushedOperation string // 新增字段：记录最后一次推送的操作
 }
 
 var waitMu sync.Mutex
@@ -115,47 +116,108 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					switch token.Operation {
 					case "BEBUY":
 						if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							if token.LastPushedOperation != "BEBUY" {
+								msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								waitMu.Lock()
+								t := waitList[sym]
+								t.LastPushedOperation = "BEBUY"
+								waitList[sym] = t
+								waitMu.Unlock()
+							}
 						} else if MACDM15 != "BUYMACD" {
-							log.Printf("❌ Wait失败 Buy : %s", sym)
+							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
 							waitMu.Unlock()
 							changed = true
+						} else {
+							log.Printf("❌ 信号失效，重置状态: %s", sym)
+							waitMu.Lock()
+							t := waitList[sym]
+							t.LastPushedOperation = "" // 清空，允许下次推送
+							waitList[sym] = t
+							waitMu.Unlock()
 						}
 					case "BESELL":
 						if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							// 如果上次推送过相同方向，就不推送
+							if token.LastPushedOperation != "BESELL" {
+								msg := fmt.Sprintf("🔴做空：🔴%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+
+								// 更新状态
+								waitMu.Lock()
+								t := waitList[sym]
+								t.LastPushedOperation = "BESELL"
+								waitList[sym] = t
+								waitMu.Unlock()
+							}
 						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
 							waitMu.Unlock()
 							changed = true
+						} else {
+							log.Printf("❌ 信号失效，重置状态: %s", sym)
+							waitMu.Lock()
+							t := waitList[sym]
+							t.LastPushedOperation = "" // 清空，允许下次推送
+							waitList[sym] = t
+							waitMu.Unlock()
 						}
 					case "OTBUY":
 						if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
-							msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							if token.LastPushedOperation != "OTBUY" {
+								msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+								waitMu.Lock()
+								t := waitList[sym]
+								t.LastPushedOperation = "OTBUY"
+								waitList[sym] = t
+								waitMu.Unlock()
+							}
 						} else if MACDM15 != "BUYMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
 							waitMu.Unlock()
 							changed = true
+						} else {
+							log.Printf("❌ 信号失效，重置状态: %s", sym)
+							waitMu.Lock()
+							t := waitList[sym]
+							t.LastPushedOperation = "" // 清空，允许下次推送
+							waitList[sym] = t
+							waitMu.Unlock()
 						}
 					case "OTSELL":
 						if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-							msg := fmt.Sprintf("🔴做空：🔴%s", sym)
-							telegram.SendMessage(wait_sucess_token, chatID, msg)
+							if token.LastPushedOperation != "OTSELL" {
+								msg := fmt.Sprintf("🔴做空：🔴%s", sym)
+								telegram.SendMessage(wait_sucess_token, chatID, msg)
+
+								// 更新状态
+								waitMu.Lock()
+								t := waitList[sym]
+								t.LastPushedOperation = "OTSELL"
+								waitList[sym] = t
+								waitMu.Unlock()
+							}
 						} else if MACDM15 != "SELLMACD" {
 							log.Printf("❌ Wait失败 Sell : %s", sym)
 							waitMu.Lock()
 							delete(waitList, sym)
 							waitMu.Unlock()
 							changed = true
+						} else {
+							log.Printf("❌ 信号失效，重置状态: %s", sym)
+							waitMu.Lock()
+							t := waitList[sym]
+							t.LastPushedOperation = "" // 清空，允许下次推送
+							waitList[sym] = t
+							waitMu.Unlock()
 						}
 					}
 
