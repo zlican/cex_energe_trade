@@ -54,7 +54,7 @@ func Update1hEMA25ToDB(client *futures.Client, db *sql.DB, limitVolume float64, 
 		if len(ema50) == 0 {
 			continue
 		}
-		currentPrice := closes[len(closes)-2]
+		currentPrice := closes[len(closes)-1]
 		lastEMA25 := ema25[len(ema25)-1]
 		lastEMA50 := ema50[len(ema50)-1]
 		lastTime := klines[len(klines)-1].CloseTime

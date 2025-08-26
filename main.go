@@ -34,7 +34,7 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 3000000000                                       //30亿 USDT
+	limitVolume               = 300000000                                        //3亿 USDT
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -53,7 +53,7 @@ var (
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "SOLUSDT", "HYPEUSDT"} // 想排除的币放这里
+		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "SOLUSDT", "WLFIUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -231,13 +231,20 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 	} else {
 		var MACDH1, MACDM15 string
 		_, _, closesH1, _ := utils.GetKlinesByAPI(client, symbol, "1h", 200)
+		price := closesH1[len(closesH1)-1]
+		ma60 := utils.CalculateMA(closesH1, 60)
 		goldenUP := utils.IsGoldenUP(closesH1, 6, 13, 5)
+		UPUP := utils.UPUP(closesH1, 6, 13, 5)
 		deadDOWN := utils.IsDeadDOWN(closesH1, 6, 13, 5)
-		if goldenUP && deadDOWN {
+		DOWNDOWN := utils.DownDown(closesH1, 6, 13, 5)
+		MACDUP := (price < ma60 && UPUP) || (price > ma60 && goldenUP)
+		MACDDOWN := (price > ma60 && DOWNDOWN) || (price < ma60 && deadDOWN)
+
+		if MACDUP && MACDDOWN {
 			MACDH1 = "RANGE"
-		} else if goldenUP {
+		} else if MACDUP {
 			MACDH1 = "BUYMACD"
-		} else if deadDOWN {
+		} else if MACDDOWN {
 			MACDH1 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
@@ -245,7 +252,6 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 		_, _, closesM15, _ := utils.GetKlinesByAPI(client, symbol, "15m", 200)
 		DEAUP := utils.IsDEAUP(closesM15, 6, 13, 5)
 		DEADOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
-		price := closesM15[len(closesM15)-1]
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
 		if price > ema25M15[len(ema25M15)-1] && DEAUP {
 			MACDM15 = "BUYMACD"
@@ -255,9 +261,9 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 			return types.CoinIndicator{}, false
 		}
 		_, _, closesM5, _ := utils.GetKlinesByAPI(client, symbol, "5m", 200)
-		ma60 := utils.CalculateMA(closesM5, 60)
+		ma60M5 := utils.CalculateMA(closesM5, 60)
 		ema25 := utils.CalculateEMA(closesM5, 25)
-		if price > ma60 && price > ema25[len(ema25)-1] {
+		if price > ma60M5 && price > ema25[len(ema25)-1] {
 			if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
@@ -266,7 +272,7 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 					Operation: "OTBUY",
 				}, true
 			}
-		} else if price < ma60 && price < ema25[len(ema25)-1] {
+		} else if price < ma60M5 && price < ema25[len(ema25)-1] {
 			if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
