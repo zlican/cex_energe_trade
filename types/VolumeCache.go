@@ -1,11 +1,10 @@
 package types
 
 import (
-	"log"
+	"context"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/adshao/go-binance/v2/futures"
 )
@@ -18,45 +17,6 @@ type VolumeCache struct {
 	ReadyCh     chan struct{} // 外部等待用
 	SlipCoin    []string      // ✅ 用 map 快速判断是否是 slipCoin
 	LimitVolume float64       // ✅ volume 下限
-}
-
-// loop: 建立 / 监听 WS；断线后自动重连。
-func (vc *VolumeCache) Loop() {
-	for {
-		doneC, stopC, err := futures.WsAllMiniMarketTickerServe(
-			func(ev futures.WsAllMiniMarketTickerEvent) {
-				// 首次收到任何推送，就触发 readyOnce
-				vc.ReadyOnce.Do(func() { close(vc.ReadyCh) })
-
-				for _, t := range ev {
-					// ✅ 滑点币种过滤
-					if isSlipCoin(t.Symbol, vc.SlipCoin) {
-						continue
-					}
-					// ✅ 只处理 USDT 对
-					if !strings.HasSuffix(t.Symbol, "USDT") {
-						continue
-					}
-					// ✅ volume 过滤
-					if v, err := strconv.ParseFloat(t.QuoteVolume, 64); err == nil {
-						if v < vc.LimitVolume {
-							continue
-						}
-						vc.M.Store(t.Symbol, v)
-					}
-				}
-			},
-			func(err error) { log.Printf("miniTicker WS err: %v", err) },
-		)
-		if err != nil {
-			log.Printf("miniTicker WS 启动失败 (%v)，5s 后重试", err)
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		vc.Stop = stopC
-		<-doneC // 等待连接关闭再重建
-		log.Print("miniTicker WS 断开，重连中…")
-	}
 }
 
 // Get 返回最新 QuoteVolume；若还没数据 ok=false。
@@ -101,4 +61,30 @@ func isSlipCoin(sym string, slipCoin []string) bool {
 		}
 	}
 	return false
+}
+
+// Refresh 拉取 REST 并更新 vc.M
+func (vc *VolumeCache) Refresh(cli *futures.Client) error {
+	stats, err := cli.NewListPriceChangeStatsService().Do(context.Background())
+	if err != nil {
+		return err
+	}
+
+	tmp := sync.Map{}
+	for _, s := range stats {
+		if isSlipCoin(s.Symbol, vc.SlipCoin) {
+			continue
+		}
+		if !strings.HasSuffix(s.Symbol, "USDT") {
+			continue
+		}
+		if v, err := strconv.ParseFloat(s.QuoteVolume, 64); err == nil {
+			if v >= vc.LimitVolume {
+				tmp.Store(s.Symbol, v)
+			}
+		}
+	}
+	vc.M = tmp // ✅ 整体替换，避免旧数据残留
+	vc.ReadyOnce.Do(func() { close(vc.ReadyCh) })
+	return nil
 }
