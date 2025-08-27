@@ -10,7 +10,7 @@ import (
 	"energe/types"
 )
 
-func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botToken, chatID string, volumeCache *types.VolumeCache) error {
+func PushTelegram(results []types.CoinIndicator, botToken, high_profit_srsi_botToken, chatID string) error {
 	var msgBuilder strings.Builder
 
 	var filteredResults []types.CoinIndicator

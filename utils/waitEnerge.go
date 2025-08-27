@@ -15,8 +15,10 @@ import (
 
 type waitToken struct {
 	Symbol              string
+	Inst                string
 	Operation           string
 	Status              string
+	Source              types.MarketSource
 	AddedAt             time.Time
 	LastPushedOperation string // 新增字段：记录最后一次推送的操作
 	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
@@ -48,7 +50,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 			emoje = "-"
 		}
 
-		msgBuilder.WriteString(fmt.Sprintf("%s %-12s\n", emoje, token.Symbol))
+		msgBuilder.WriteString(fmt.Sprintf("%s %-36s(%s)\n", emoje, token.Symbol, token.Source))
 	}
 	msg := msgBuilder.String()
 	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitList))
@@ -92,7 +94,12 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
 						//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 					} else {
-						_, _, closesM5, _ := GetKlinesByAPI(client, sym, "5m", 200)
+						var closesM15, closesM5 []float64
+						if token.Source == types.SourceBinance {
+							_, _, closesM5, _ = GetKlinesByAPI(client, sym, "5m", 200)
+						} else if token.Source == types.SourceOKX {
+							_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
+						}
 						price := closesM5[len(closesM5)-1]
 						ma60 = CalculateMA(closesM5, 60)
 						ema25 := CalculateEMA(closesM5, 25)
@@ -102,7 +109,11 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 						} else if price < ma60 && price < ema25Now {
 							MACDM5 = "SELLMACD"
 						}
-						_, _, closesM15, _ := GetKlinesByAPI(client, sym, "15m", 200)
+						if token.Source == types.SourceBinance {
+							_, _, closesM15, _ = GetKlinesByAPI(client, sym, "15m", 200)
+						} else if token.Source == types.SourceOKX {
+							_, _, closesM15, _ = GetKlinesByAPI_OKX(token.Inst, "15m", 200)
+						}
 						DEAUP := IsDEAUP(closesM15, 6, 13, 5)
 						DEADOWN := IsDEADOWN(closesM15, 6, 13, 5)
 						ema25M15 := CalculateEMA(closesM15, 25)
@@ -302,8 +313,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 			if !exists {
 				waitList[coin.Symbol] = waitToken{
 					Symbol:    coin.Symbol,
+					Inst:      coin.Inst,
 					Operation: coin.Operation,
 					Status:    coin.Status,
+					Source:    coin.Source,
 					AddedAt:   now,
 				}
 				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
@@ -312,8 +325,10 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 			if exists && exist.Operation != coin.Operation {
 				waitList[coin.Symbol] = waitToken{
 					Symbol:    coin.Symbol,
+					Inst:      coin.Inst,
 					Operation: coin.Operation,
 					Status:    coin.Status,
+					Source:    coin.Source,
 					AddedAt:   now,
 				}
 				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)

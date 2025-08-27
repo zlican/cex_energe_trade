@@ -13,7 +13,7 @@ func GetKlinesByAPI(client *futures.Client, symbol, tf string, klinesCount int) 
 	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
 	defer cancel()
 
-	const maxRetries = 2
+	const maxRetries = 3
 
 	var (
 		klines []*futures.Kline

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"energe/model"
+	"energe/okx"
 	"energe/telegram"
 	"energe/types"
 	"energe/utils"
@@ -34,7 +35,9 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 300000000                                        //3亿 USDT
+	limitVolume               = 300000000
+	okxCache                  *okx.VolumeCache
+	okxLimit                  = 250000000.0                                      // 2.5 亿                                    //3亿 USDT
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -53,7 +56,7 @@ var (
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "WLFIUSDT", "BERAUSDT"} // 想排除的币放这里
+		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "WLFIUSDT", "BERAUSDT", "PEPEUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -89,6 +92,15 @@ func main() {
 	log.Println("volumeCache 启动成功")
 	defer volumeCache.Close()
 
+	okxCache, err = okx.NewVolumeCacheOKX(proxyURL, slipCoin, okxLimit)
+	if err != nil {
+		log.Fatalf("OKX VolumeCache 启动失败: %v", err)
+	}
+	<-okxCache.Ready()
+	log.Println("okxCache 启动成功")
+	defer okxCache.Close()
+
+	fmt.Println(okxCache.SymbolsAboveNotional(float64(okxLimit)))
 	fmt.Println(volumeCache.SymbolsAbove(float64(limitVolume)))
 
 	model.InitDBTrend()
@@ -141,18 +153,13 @@ func main() {
 /* ====================== 核心扫描 ====================== */
 
 func runScan(client *futures.Client) error {
-	progressLogger.Println("开始新一轮扫描...")
+	progressLogger.Println("开始新一轮扫描（BINANCE + OKX）...")
 
-	// ---------- 1. 过滤 USDT 交易对 ----------
-	var symbols []string
-	if volumeCache == nil {
-		progressLogger.Println("volumeCache 尚未准备好")
-		return nil
-	}
-	symbols = volumeCache.SymbolsAbove(float64(limitVolume))
-	progressLogger.Printf("USDT 交易对数量: %d", len(symbols))
+	// ---------- 1. 构建合并候选 ----------
+	candidates := utils.BuildCandidates(volumeCache, okxCache, float64(limitVolume), okxLimit)
+	progressLogger.Printf("合并候选数量: %d", len(candidates))
 
-	// ---------- 3. 并发处理 ----------
+	// ---------- 2. 并发分析 ----------
 	var (
 		results []types.CoinIndicator
 		resMu   sync.Mutex
@@ -160,24 +167,24 @@ func runScan(client *futures.Client) error {
 		sem     = semaphore.NewWeighted(int64(maxWorkers))
 	)
 
-	for _, symbol := range symbols {
+	for _, c := range candidates {
 		if err := sem.Acquire(context.Background(), 1); err != nil {
 			progressLogger.Printf("semaphore acquire 失败: %v", err)
 			continue
 		}
-
 		wg.Add(1)
-		go func(sym string) {
+		go func(c types.Candidate) {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			ind, ok := analyseSymbol(client, sym, db_trend)
+			ind, ok := analyseSymbol(client, c, db_trend)
 			if ok {
 				resMu.Lock()
 				results = append(results, ind)
 				resMu.Unlock()
 			}
-		}(symbol)
+
+		}(c)
 	}
 	wg.Wait()
 
@@ -188,20 +195,19 @@ func runScan(client *futures.Client) error {
 	}
 
 	progressLogger.Printf("本轮符合条件标的数量: %d", len(results))
+	sort.Slice(results, func(i, j int) bool { return results[i].StochRSI > results[j].StochRSI })
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].StochRSI > results[j].StochRSI // “>” 表示降序
-	})
-
-	// ---------- 4. 推送到 Telegram ----------
-	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID, volumeCache)
+	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID)
 }
 
 /* ====================== 单币分析 ====================== */
 
-func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (types.CoinIndicator, bool) {
+func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) (types.CoinIndicator, bool) {
 
+	symbol := c.Symbol
+	var inst string
 	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
+		inst = symbol
 		//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
 		MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
 		MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
@@ -216,6 +222,8 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BEBUY",
+				Source:    types.SourceBinance,
+				Inst:      inst,
 			}, true
 		}
 
@@ -225,12 +233,21 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BESELL",
+				Source:    types.SourceBinance,
+				Inst:      inst,
 			}, true
 		}
 
 	} else {
 		var MACDH1, MACDM15 string
-		_, _, closesH1, _ := utils.GetKlinesByAPI(client, symbol, "1h", 200)
+		var closesH1, closesM15, closesM5 []float64
+		if c.Source == types.SourceBinance {
+			_, _, closesH1, _ = utils.GetKlinesByAPI(client, symbol, "1h", 200)
+		} else if c.Source == types.SourceOKX {
+			inst, _ = okxCache.RawSymbol(c.Symbol)
+			_, _, closesH1, _ = utils.GetKlinesByAPI_OKX(inst, "1H", 200)
+		}
+
 		price := closesH1[len(closesH1)-1]
 		ma60 := utils.CalculateMA(closesH1, 60)
 		goldenUP := utils.IsGoldenUP(closesH1, 6, 13, 5)
@@ -249,7 +266,13 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 		} else {
 			return types.CoinIndicator{}, false
 		}
-		_, _, closesM15, _ := utils.GetKlinesByAPI(client, symbol, "15m", 200)
+		if c.Source == types.SourceBinance {
+			_, _, closesM15, _ = utils.GetKlinesByAPI(client, symbol, "15m", 200)
+		} else if c.Source == types.SourceOKX {
+			inst, _ = okxCache.RawSymbol(c.Symbol)
+			_, _, closesM15, _ = utils.GetKlinesByAPI_OKX(inst, "15m", 200)
+		}
+
 		DEAUP := utils.IsDEAUP(closesM15, 6, 13, 5)
 		DEADOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
@@ -260,7 +283,12 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 		} else {
 			return types.CoinIndicator{}, false
 		}
-		_, _, closesM5, _ := utils.GetKlinesByAPI(client, symbol, "5m", 200)
+		if c.Source == types.SourceBinance {
+			_, _, closesM5, _ = utils.GetKlinesByAPI(client, symbol, "5m", 200)
+		} else if c.Source == types.SourceOKX {
+			inst, _ = okxCache.RawSymbol(c.Symbol)
+			_, _, closesM5, _ = utils.GetKlinesByAPI_OKX(inst, "5m", 200)
+		}
 		ma60M5 := utils.CalculateMA(closesM5, 60)
 		ema25 := utils.CalculateEMA(closesM5, 25)
 		if price > ma60M5 && price > ema25[len(ema25)-1] {
@@ -270,6 +298,8 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTBUY",
+					Source:    c.Source,
+					Inst:      inst,
 				}, true
 			}
 		} else if price < ma60M5 && price < ema25[len(ema25)-1] {
@@ -279,6 +309,8 @@ func analyseSymbol(client *futures.Client, symbol string, db_trend *sql.DB) (typ
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTSELL",
+					Source:    c.Source,
+					Inst:      inst,
 				}, true
 			}
 		} else {
