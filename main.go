@@ -249,13 +249,10 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 		price := closesH1[len(closesH1)-1]
-		ma60 := utils.CalculateMA(closesH1, 60)
-		goldenUP := utils.IsGoldenUP(closesH1, 6, 13, 5)
 		UPUP := utils.UPUP(closesH1, 6, 13, 5)
-		deadDOWN := utils.IsDeadDOWN(closesH1, 6, 13, 5)
 		DOWNDOWN := utils.DownDown(closesH1, 6, 13, 5)
-		MACDUP := (price < ma60 && UPUP) || (price > ma60 && goldenUP)
-		MACDDOWN := (price > ma60 && DOWNDOWN) || (price < ma60 && deadDOWN)
+		MACDUP := UPUP
+		MACDDOWN := DOWNDOWN
 
 		if MACDUP && MACDDOWN {
 			MACDH1 = "RANGE"
