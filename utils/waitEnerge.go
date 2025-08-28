@@ -193,6 +193,44 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitList[sym] = t
 				waitMu.Unlock()
 			}
+		case "OTBUY":
+			if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+				if token.LastPushedOperation != "OTBUY" {
+					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+					waitMu.Lock()
+					t := waitList[sym]
+					t.LastPushedOperation = "OTBUY"
+					waitList[sym] = t
+					waitMu.Unlock()
+				}
+			} else if MACDM15 != "BUYMACD" {
+				log.Printf("❌ Wait失败 Sell : %s", sym)
+				waitMu.Lock()
+				// 如果之前推送过买入信号，而且还没发过“失效”消息
+				t := waitList[sym]
+				if t.LastPushedOperation == "OTBUY" && !t.LastInvalidPushed {
+					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+					t.LastInvalidPushed = true
+					waitList[sym] = t
+				}
+				delete(waitList, sym) // 删除
+				waitMu.Unlock()
+				changed = true
+			} else {
+				log.Printf("❌ 信号失效，重置状态: %s", sym)
+				waitMu.Lock()
+				t := waitList[sym]
+				if t.LastPushedOperation == "OTBUY" && !t.LastInvalidPushed {
+					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+				}
+				t.LastPushedOperation = "" // 清空，允许下次推送
+				t.LastInvalidPushed = true
+				waitList[sym] = t
+				waitMu.Unlock()
+			}
 		case "OTSELL":
 			if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 				if token.LastPushedOperation != "OTSELL" {
@@ -273,13 +311,55 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 			go executeWaitCheck(db_trend, wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
-	// 接收新 results 并更新 waitList（逻辑不变）
+	// 接收新 results 并更新 waitList
 	for newResults := range resultsChan {
 		var newAdded bool
 		now := time.Now()
 
 		waitMu.Lock()
+		// 检查当前 waitList 是否包含 BTC 或 ETH
+		hasBTC := false
+		hasETH := false
+		for sym := range waitList {
+			if sym == "BTCUSDT" {
+				hasBTC = true
+			}
+			if sym == "ETHUSDT" {
+				hasETH = true
+			}
+		}
+
+		// 如果新结果里有 BTC/ETH，就强制清理掉其他代币
+		incomingHasBTC := false
+		incomingHasETH := false
 		for _, coin := range newResults {
+			if coin.Symbol == "BTCUSDT" {
+				incomingHasBTC = true
+			}
+			if coin.Symbol == "ETHUSDT" {
+				incomingHasETH = true
+			}
+		}
+
+		if incomingHasBTC || incomingHasETH {
+			// 🚮 清理掉所有非BTC/ETH代币
+			for sym := range waitList {
+				if sym != "BTCUSDT" && sym != "ETHUSDT" {
+					log.Printf("🧹 清理非BTC/ETH代币: %s", sym)
+					delete(waitList, sym)
+				}
+			}
+		}
+
+		// 再按规则添加/更新
+		for _, coin := range newResults {
+			// 如果已有 BTC/ETH，忽略其他代币
+			if (hasBTC || hasETH || incomingHasBTC || incomingHasETH) &&
+				(coin.Symbol != "BTCUSDT" && coin.Symbol != "ETHUSDT") {
+				log.Printf("⏭ 忽略非BTC/ETH代币: %s，因为等待区已有BTC或ETH", coin.Symbol)
+				continue
+			}
+
 			exist, exists := waitList[coin.Symbol]
 			if !exists {
 				waitList[coin.Symbol] = waitToken{
@@ -290,7 +370,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					Source:    coin.Source,
 					AddedAt:   now,
 				}
-				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
+				log.Printf("✅ 添加等待代币: %s", coin.Symbol)
 				newAdded = true
 			}
 			if exists && exist.Operation != coin.Operation {
@@ -302,7 +382,7 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 					Source:    coin.Source,
 					AddedAt:   now,
 				}
-				log.Printf("✅ 添加或替换等待代币: %s", coin.Symbol)
+				log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
 				newAdded = true
 			}
 		}
