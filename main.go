@@ -57,7 +57,7 @@ var (
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
 		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "WLFIUSDT", "BERAUSDT", "PEPEUSDT",
-	} // 想排除的币放这里
+		"SOLUSDT", "HYPEUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -160,65 +160,54 @@ func main() {
 	log.Println("收到退出信号，程序结束")
 }
 
-/* ====================== 核心扫描 ====================== */
 func runScan(client *futures.Client) error {
 	progressLogger.Println("开始新一轮扫描（BINANCE + OKX）...")
 
-	// ---------- 1. 构建合并候选 ----------
-	candidates := utils.BuildCandidates(volumeCache, okxCache, float64(limitVolume), okxLimit)
-	progressLogger.Printf("合并候选数量: %d", len(candidates))
-
-	// ✅ 优化：优先只保留 BTC/ETH
-	hasBTC := false
-	hasETH := false
-	for _, c := range candidates {
-		if c.Symbol == "BTCUSDT" {
-			hasBTC = true
-		}
-		if c.Symbol == "ETHUSDT" {
-			hasETH = true
+	// ---------- 0. 优先分析 BTC, ETH, SOL ----------
+	coreSymbols := []string{"BTCUSDT", "ETHUSDT"}
+	var results []types.CoinIndicator
+	for _, sym := range coreSymbols {
+		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym, Source: types.SourceBinance}, db_trend)
+		if ok {
+			results = append(results, ind)
 		}
 	}
 
-	if hasBTC || hasETH {
-		filtered := make([]types.Candidate, 0, 2)
+	// 如果有核心代币返回有效结果，跳过 candidates 遍历
+	if len(results) == 0 {
+		// ---------- 1. 构建合并候选 ----------
+		candidates := utils.BuildCandidates(volumeCache, okxCache, float64(limitVolume), okxLimit)
+		progressLogger.Printf("合并候选数量: %d", len(candidates))
+
+		// ---------- 2. 并发分析 ----------
+		var (
+			resMu sync.Mutex
+			wg    sync.WaitGroup
+			sem   = semaphore.NewWeighted(int64(maxWorkers))
+		)
+
 		for _, c := range candidates {
-			if c.Symbol == "BTCUSDT" || c.Symbol == "ETHUSDT" {
-				filtered = append(filtered, c)
+			if err := sem.Acquire(context.Background(), 1); err != nil {
+				progressLogger.Printf("semaphore acquire 失败: %v", err)
+				continue
 			}
+			wg.Add(1)
+			go func(c types.Candidate) {
+				defer wg.Done()
+				defer sem.Release(1)
+
+				ind, ok := analyseSymbol(client, c, db_trend)
+				if ok {
+					resMu.Lock()
+					results = append(results, ind)
+					resMu.Unlock()
+				}
+			}(c)
 		}
-		candidates = filtered
-		progressLogger.Printf("⚡ 已检测到 BTC/ETH，只保留 %d 个候选", len(candidates))
+		wg.Wait()
 	}
 
-	// ---------- 2. 并发分析 ----------
-	var (
-		results []types.CoinIndicator
-		resMu   sync.Mutex
-		wg      sync.WaitGroup
-		sem     = semaphore.NewWeighted(int64(maxWorkers))
-	)
-
-	for _, c := range candidates {
-		if err := sem.Acquire(context.Background(), 1); err != nil {
-			progressLogger.Printf("semaphore acquire 失败: %v", err)
-			continue
-		}
-		wg.Add(1)
-		go func(c types.Candidate) {
-			defer wg.Done()
-			defer sem.Release(1)
-
-			ind, ok := analyseSymbol(client, c, db_trend)
-			if ok {
-				resMu.Lock()
-				results = append(results, ind)
-				resMu.Unlock()
-			}
-		}(c)
-	}
-	wg.Wait()
-
+	// ---------- 3. 发送等待区 channel ----------
 	select {
 	case waitChan <- results:
 	default:
@@ -301,12 +290,14 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 			_, _, closesM15, _ = utils.GetKlinesByAPI_OKX(inst, "15m", 200)
 		}
 
-		DEAUP := utils.IsDEAUP(closesM15, 6, 13, 5)
-		DEADOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
+		DIFUP := utils.IsDIFUP(closesM15, 6, 13, 5)
+		DIFDOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
+		ma60M15 := utils.CalculateMA(closesM15, 60)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
-		if price > ema25M15[len(ema25M15)-1] && DEAUP {
+		ema25M15now := ema25M15[len(ema25M15)-1]
+		if price > ema25M15now && price > ma60M15 && DIFUP {
 			MACDM15 = "BUYMACD"
-		} else if price < ema25M15[len(ema25M15)-1] && DEADOWN {
+		} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
 			MACDM15 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
@@ -319,8 +310,9 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 		ma60M5 := utils.CalculateMA(closesM5, 60)
-		ema25 := utils.CalculateEMA(closesM5, 25)
-		if price > ma60M5 && price > ema25[len(ema25)-1] {
+		ema25M5 := utils.CalculateEMA(closesM5, 25)
+		ema25M5now := ema25M5[len(ema25M5)-1]
+		if price > ema25M5now && price > ma60M5 {
 			if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
@@ -331,7 +323,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 					Inst:      inst,
 				}, true
 			}
-		} else if price < ma60M5 && price < ema25[len(ema25)-1] {
+		} else if price < ema25M5now && price < ma60M5 {
 			if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
 				status := "Wait"
 				return types.CoinIndicator{

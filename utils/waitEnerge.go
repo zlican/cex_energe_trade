@@ -71,7 +71,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 
 	for sym, token := range waitCopy {
 		var MACDM5, MACDM15 string
-		var ema25Now, ma60 float64
 
 		if sym == "BTCUSDT" || sym == "ETHUSDT" {
 			MACDM5, _ = GetTrendResult(db_trend, sym, "5m")
@@ -88,12 +87,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
 			}
 			price := closesM5[len(closesM5)-1]
-			ma60 = CalculateMA(closesM5, 60)
-			ema25 := CalculateEMA(closesM5, 25)
-			ema25Now = ema25[len(ema25)-1]
-			if price > ma60 && price > ema25Now {
+			ma60M5 := CalculateMA(closesM5, 60)
+			ema25M5 := CalculateEMA(closesM5, 25)
+			ema25M5now := ema25M5[len(ema25M5)-1]
+			if price > ema25M5now && price > ma60M5 {
 				MACDM5 = "BUYMACD"
-			} else if price < ma60 && price < ema25Now {
+			} else if price < ema25M5now && price < ma60M5 {
 				MACDM5 = "SELLMACD"
 			}
 			if token.Source == types.SourceBinance {
@@ -101,12 +100,14 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			} else if token.Source == types.SourceOKX {
 				_, _, closesM15, _ = GetKlinesByAPI_OKX(token.Inst, "15m", 200)
 			}
-			DEAUP := IsDEAUP(closesM15, 6, 13, 5)
-			DEADOWN := IsDEADOWN(closesM15, 6, 13, 5)
+			DIFUP := IsDIFUP(closesM15, 6, 13, 5)
+			DIFDOWN := IsDIFDOWN(closesM15, 6, 13, 5)
+			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
-			if price > ema25M15[len(ema25M15)-1] && DEAUP {
+			ema25M15now := ema25M15[len(ema25M15)-1]
+			if price > ema25M15now && price > ma60M15 && DIFUP {
 				MACDM15 = "BUYMACD"
-			} else if price < ema25M15[len(ema25M15)-1] && DEADOWN {
+			} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
 				MACDM15 = "SELLMACD"
 			} else {
 				continue
