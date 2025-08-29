@@ -232,46 +232,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitList[sym] = t
 				waitMu.Unlock()
 			}
-		case "OTSELL":
-			if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
-				if token.LastPushedOperation != "OTSELL" {
-					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
-					telegram.SendMessage(wait_sucess_token, chatID, msg)
-
-					// 更新状态
-					waitMu.Lock()
-					t := waitList[sym]
-					t.LastPushedOperation = "OTSELL"
-					waitList[sym] = t
-					waitMu.Unlock()
-				}
-			} else if MACDM15 != "SELLMACD" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
-				waitMu.Lock()
-				// 如果之前推送过买入信号，而且还没发过“失效”消息
-				t := waitList[sym]
-				if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
-					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
-					telegram.SendMessage(wait_sucess_token, chatID, msg)
-					t.LastInvalidPushed = true
-					waitList[sym] = t
-				}
-				delete(waitList, sym) // 删除
-				waitMu.Unlock()
-				changed = true
-			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
-				waitMu.Lock()
-				t := waitList[sym]
-				if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
-					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
-					telegram.SendMessage(wait_sucess_token, chatID, msg)
-				}
-				t.LastPushedOperation = "" // 清空，允许下次推送
-				t.LastInvalidPushed = true
-				waitList[sym] = t
-				waitMu.Unlock()
-			}
 		}
 
 		if now.Sub(token.AddedAt) > 8*time.Hour {

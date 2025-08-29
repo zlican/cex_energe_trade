@@ -57,7 +57,7 @@ var (
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
 		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "WLFIUSDT", "BERAUSDT", "PEPEUSDT",
-		"SOLUSDT", "HYPEUSDT"} // 想排除的币放这里
+		"SOLUSDT", "HYPEUSDT", "MITOUSDT"} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -270,16 +270,10 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 
 		price := closesH1[len(closesH1)-1]
 		UPUP := utils.UPUP(closesH1, 6, 13, 5)
-		DOWNDOWN := utils.DownDown(closesH1, 6, 13, 5)
 		MACDUP := UPUP
-		MACDDOWN := DOWNDOWN
 
-		if MACDUP && MACDDOWN {
-			MACDH1 = "RANGE"
-		} else if MACDUP {
+		if MACDUP {
 			MACDH1 = "BUYMACD"
-		} else if MACDDOWN {
-			MACDH1 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
 		}
@@ -291,14 +285,11 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 		DIFUP := utils.IsDIFUP(closesM15, 6, 13, 5)
-		DIFDOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 		ma60M15 := utils.CalculateMA(closesM15, 60)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
 		ema25M15now := ema25M15[len(ema25M15)-1]
 		if price > ema25M15now && price > ma60M15 && DIFUP {
 			MACDM15 = "BUYMACD"
-		} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
-			MACDM15 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
 		}
@@ -313,23 +304,12 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		ema25M5 := utils.CalculateEMA(closesM5, 25)
 		ema25M5now := ema25M5[len(ema25M5)-1]
 		if price > ema25M5now && price > ma60M5 {
-			if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTBUY",
-					Source:    c.Source,
-					Inst:      inst,
-				}, true
-			}
-		} else if price < ema25M5now && price < ma60M5 {
-			if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
-				status := "Wait"
-				return types.CoinIndicator{
-					Symbol:    symbol,
-					Status:    status,
-					Operation: "OTSELL",
 					Source:    c.Source,
 					Inst:      inst,
 				}, true
