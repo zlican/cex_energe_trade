@@ -255,16 +255,26 @@ func waitUntilNext5Min() time.Duration { //每5分钟监控
 	}
 	return time.Until(next)
 }
-func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_sucess_token, chatID string, client *futures.Client, klinesCount int, waiting_token string) {
+func WaitEnerge(
+	resultsChan chan []types.CoinIndicator,
+	db_trend *sql.DB,
+	wait_sucess_token, chatID string,
+	client *futures.Client,
+	klinesCount int,
+	waiting_token string,
+) {
 	go func() {
-		// 🚀 启动时立即执行一次
+		// 🚀 先消费一次已有消息，保证 waitList 不为空
+		drainResults(resultsChan, waiting_token, chatID)
+
+		// 再执行首次检测
 		now := time.Now()
 		executeWaitCheck(db_trend, wait_sucess_token, chatID, client, waiting_token, now)
 
-		// 先等到下一个 5 分钟整点
+		// 等到下一个 5 分钟整点
 		time.Sleep(waitUntilNext5Min())
 
-		// 然后每 5 分钟一次（分钟 % 5 == 0）
+		// 每 5 分钟触发
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
@@ -272,85 +282,105 @@ func WaitEnerge(resultsChan chan []types.CoinIndicator, db_trend *sql.DB, wait_s
 			go executeWaitCheck(db_trend, wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
-	// 接收新 results 并更新 waitList
+
+	// 常规消费
 	for newResults := range resultsChan {
-		var newAdded bool
-		now := time.Now()
+		addToWaitList(newResults, waiting_token, chatID)
+	}
+}
 
-		waitMu.Lock()
-		// 检查当前 waitList 是否包含 BTC 或 ETH
-		hasBTC := false
-		hasETH := false
+// ================== 辅助函数 ==================
+
+// 启动时先 drain 一次通道（非阻塞，防止残留）
+func drainResults(resultsChan chan []types.CoinIndicator, waiting_token, chatID string) {
+	for {
+		select {
+		case newResults := <-resultsChan:
+			addToWaitList(newResults, waiting_token, chatID)
+		default:
+			return
+		}
+	}
+}
+
+// 公共的添加逻辑（含 BTC/ETH 优先规则）
+func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID string) {
+	var newAdded bool
+	now := time.Now()
+
+	waitMu.Lock()
+	// 检查当前 waitList 是否包含 BTC 或 ETH
+	hasBTC := false
+	hasETH := false
+	for sym := range waitList {
+		if sym == "BTCUSDT" {
+			hasBTC = true
+		}
+		if sym == "ETHUSDT" {
+			hasETH = true
+		}
+	}
+
+	// 如果新结果里有 BTC/ETH，就强制清理掉其他代币
+	incomingHasBTC := false
+	incomingHasETH := false
+	for _, coin := range newResults {
+		if coin.Symbol == "BTCUSDT" {
+			incomingHasBTC = true
+		}
+		if coin.Symbol == "ETHUSDT" {
+			incomingHasETH = true
+		}
+	}
+
+	if incomingHasBTC || incomingHasETH {
+		// 🚮 清理掉所有非BTC/ETH代币
 		for sym := range waitList {
-			if sym == "BTCUSDT" {
-				hasBTC = true
-			}
-			if sym == "ETHUSDT" {
-				hasETH = true
+			if sym != "BTCUSDT" && sym != "ETHUSDT" {
+				log.Printf("🧹 清理非BTC/ETH代币: %s", sym)
+				delete(waitList, sym)
 			}
 		}
+	}
 
-		// 如果新结果里有 BTC/ETH，就强制清理掉其他代币
-		incomingHasBTC := false
-		incomingHasETH := false
-		for _, coin := range newResults {
-			if coin.Symbol == "BTCUSDT" {
-				incomingHasBTC = true
-			}
-			if coin.Symbol == "ETHUSDT" {
-				incomingHasETH = true
-			}
+	// 再按规则添加/更新
+	for _, coin := range newResults {
+		// 如果已有 BTC/ETH，忽略其他代币
+		if (hasBTC || hasETH || incomingHasBTC || incomingHasETH) &&
+			(coin.Symbol != "BTCUSDT" && coin.Symbol != "ETHUSDT") {
+			log.Printf("⏭ 忽略非BTC/ETH代币: %s，因为等待区已有BTC或ETH", coin.Symbol)
+			continue
 		}
 
-		if incomingHasBTC || incomingHasETH {
-			// 🚮 清理掉所有非BTC/ETH代币
-			for sym := range waitList {
-				if sym != "BTCUSDT" && sym != "ETHUSDT" {
-					log.Printf("🧹 清理非BTC/ETH代币: %s", sym)
-					delete(waitList, sym)
-				}
+		exist, exists := waitList[coin.Symbol]
+		if !exists {
+			waitList[coin.Symbol] = waitToken{
+				Symbol:    coin.Symbol,
+				Inst:      coin.Inst,
+				Operation: coin.Operation,
+				Status:    coin.Status,
+				Source:    coin.Source,
+				AddedAt:   now,
 			}
+			log.Printf("✅ 添加等待代币: %s", coin.Symbol)
+			newAdded = true
 		}
-
-		// 再按规则添加/更新
-		for _, coin := range newResults {
-			// 如果已有 BTC/ETH，忽略其他代币
-			if (hasBTC || hasETH || incomingHasBTC || incomingHasETH) &&
-				(coin.Symbol != "BTCUSDT" && coin.Symbol != "ETHUSDT") {
-				log.Printf("⏭ 忽略非BTC/ETH代币: %s，因为等待区已有BTC或ETH", coin.Symbol)
-				continue
+		if exists && exist.Operation != coin.Operation {
+			waitList[coin.Symbol] = waitToken{
+				Symbol:    coin.Symbol,
+				Inst:      coin.Inst,
+				Operation: coin.Operation,
+				Status:    coin.Status,
+				Source:    coin.Source,
+				AddedAt:   now,
 			}
-
-			exist, exists := waitList[coin.Symbol]
-			if !exists {
-				waitList[coin.Symbol] = waitToken{
-					Symbol:    coin.Symbol,
-					Inst:      coin.Inst,
-					Operation: coin.Operation,
-					Status:    coin.Status,
-					Source:    coin.Source,
-					AddedAt:   now,
-				}
-				log.Printf("✅ 添加等待代币: %s", coin.Symbol)
-				newAdded = true
-			}
-			if exists && exist.Operation != coin.Operation {
-				waitList[coin.Symbol] = waitToken{
-					Symbol:    coin.Symbol,
-					Inst:      coin.Inst,
-					Operation: coin.Operation,
-					Status:    coin.Status,
-					Source:    coin.Source,
-					AddedAt:   now,
-				}
-				log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
-				newAdded = true
-			}
+			log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
+			newAdded = true
 		}
-		waitMu.Unlock()
+	}
+	waitMu.Unlock()
 
-		if newAdded {
-			sendWaitListBroadcast(now, waiting_token, chatID)
-		}
+	if newAdded {
+		sendWaitListBroadcast(now, waiting_token, chatID)
 	}
 }
