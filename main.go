@@ -42,6 +42,8 @@ var (
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
 	high_profit_srsi_botToken = "7924943629:AAEontupSGOxEm4TPJE6tc-CSzTAqlzwQNY" //极品左侧抄底bot
+	long_energe_bot           = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //长线模型
+	long_waiting_bot          = "8236814626:AAHFq7SmeJ16Lvr1e0c_eoJSTLfqDtSqFCA" //长线等待区
 	chatID                    = "6074996357"
 
 	// volumeMap      = map[string]float64{}
@@ -62,7 +64,7 @@ var (
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
-	betrend        types.BETrend
+	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
 )
 
 /* ====================== 主函数 ====================== */
@@ -73,6 +75,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/latest-tg-messages", latestMessagesHandler)
 	mux.HandleFunc("/api/latest-tg-messages-waiting", latestMessagesWaitingHandler)
+	mux.HandleFunc("/api/latest-tg-messages-long", latestMessagesLongHandler)
+	mux.HandleFunc("/api/latest-tg-messages-waiting-long", latestMessagesWaitingLongHandler)
 
 	go func() {
 		if err := http.ListenAndServe(":8888", corsMiddleware(mux)); err != nil {
@@ -111,24 +115,32 @@ func main() {
 		log.Fatal("db_trend 初始化失败，DBTrend 为空")
 	}
 
+	// 首次 runScan 成功后再启动等待区
+	go utils.WaitEnerge(
+		waitChan,
+		db_trend,
+		wait_energe_botToken,
+		chatID,
+		client,
+		klinesCount,
+		energe_waiting_botToken,
+	)
+
+	go utils.WaitEnergeL(
+		waitChanLong,
+		long_energe_bot,
+		chatID,
+		client,
+		klinesCount,
+		long_waiting_bot,
+	)
+
+	//短线监控模型
 	go func() {
 		progressLogger.Printf("[runScan] 首次立即执行: %s", time.Now().Format("15:04:05"))
 		if err := runScan(client); err != nil {
 			progressLogger.Printf("首次 runScan 出错: %v", err)
-		} else {
-			// 首次 runScan 成功后再启动等待区
-			go utils.WaitEnerge(
-				waitChan,
-				db_trend,
-				wait_energe_botToken,
-				chatID,
-				client,
-				klinesCount,
-				energe_waiting_botToken,
-			)
-			progressLogger.Printf("[WaitEnerge] 等待区监控已启动: %s", time.Now().Format("15:04:05"))
 		}
-
 		// 计算下一次对齐时间
 		now := time.Now()
 		minutesToNext := 5 - (now.Minute() % 5)
@@ -148,6 +160,38 @@ func main() {
 				progressLogger.Printf("[runScan] 每5分钟触发: %s", t.Format("15:04:05"))
 				go func() {
 					if err := runScan(client); err != nil {
+						progressLogger.Printf("周期 runScan 出错: %v", err)
+					}
+				}()
+			}
+		})
+	}()
+
+	//长线监控模型
+	go func() {
+		progressLogger.Printf("[runScanLong] 首次立即执行: %s", time.Now().Format("15:04:05"))
+		if err := runScanLong(client); err != nil {
+			progressLogger.Printf("首次 runScanLong 出错: %v", err)
+		}
+
+		// 计算下一次整点时间
+		now := time.Now()
+		nextAligned := now.Truncate(time.Hour).Add(time.Hour) // 下一整点
+		delay := time.Until(nextAligned)
+
+		progressLogger.Printf("[runScanLong] 下一次整点在 %s 执行（等待 %v）", nextAligned.Format("15:04:05"), delay)
+
+		time.AfterFunc(delay, func() {
+			progressLogger.Printf("[runScanLong] 整点执行: %s", time.Now().Format("15:04:05"))
+			if err := runScanLong(client); err != nil {
+				progressLogger.Printf("整点 runScan 出错: %v", err)
+			}
+
+			ticker := time.NewTicker(1 * time.Hour)
+			for t := range ticker.C {
+				progressLogger.Printf("[runScanLong] 每小时触发: %s", t.Format("15:04:05"))
+				go func() {
+					if err := runScanLong(client); err != nil {
 						progressLogger.Printf("周期 runScan 出错: %v", err)
 					}
 				}()
@@ -218,6 +262,28 @@ func runScan(client *futures.Client) error {
 	sort.Slice(results, func(i, j int) bool { return results[i].StochRSI > results[j].StochRSI })
 
 	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID)
+}
+
+func runScanLong(client *futures.Client) error {
+
+	//Long代币列表
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "ETHBTC", "PAXGUSDT"}
+	var resultsLong []types.CoinIndicator
+	for _, sym := range LongSymbols {
+		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym, Source: types.SourceBinance})
+		if ok {
+			resultsLong = append(resultsLong, ind)
+		}
+	}
+
+	// ---------- 3. 发送等待区 channel ----------
+	select {
+	case waitChanLong <- resultsLong:
+	default:
+		progressLogger.Println("waitChan 被阻塞，跳过本次发送")
+	}
+
+	return utils.PushTelegram(resultsLong, botToken, high_profit_srsi_botToken, chatID)
 }
 
 /* ====================== 单币分析 ====================== */
@@ -322,6 +388,95 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 	return types.CoinIndicator{}, false
 }
 
+/* ====================== 单币分析 ====================== */
+
+func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
+
+	symbol := c.Symbol
+	var inst string
+
+	var MACDD3, MACDD1 string
+	var closesD3, closesD1, closesH4 []float64
+	if c.Source == types.SourceBinance {
+		_, _, closesD3, _ = utils.GetKlinesByAPI(client, symbol, "3d", 200)
+	} else if c.Source == types.SourceOKX {
+		inst, _ = okxCache.RawSymbol(c.Symbol)
+		_, _, closesD3, _ = utils.GetKlinesByAPI_OKX(inst, "3d", 200)
+	}
+
+	price := closesD3[len(closesD3)-1]
+	UPUP := utils.UPUP(closesD3, 6, 13, 5)
+	DOWNDOWN := utils.DownDown(closesD3, 6, 13, 5)
+	MACDUP := UPUP
+	MACDDOWN := DOWNDOWN
+
+	if MACDUP && MACDDOWN {
+		MACDD3 = "RANGE"
+	} else if MACDUP {
+		MACDD3 = "BUYMACD"
+	} else if MACDDOWN {
+		MACDD3 = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+	if c.Source == types.SourceBinance {
+		_, _, closesD1, _ = utils.GetKlinesByAPI(client, symbol, "1d", 200)
+	} else if c.Source == types.SourceOKX {
+		inst, _ = okxCache.RawSymbol(c.Symbol)
+		_, _, closesD1, _ = utils.GetKlinesByAPI_OKX(inst, "1d", 200)
+	}
+
+	DIFUP := utils.IsDIFUP(closesD1, 6, 13, 5)
+	DIFDOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+	ma60D1 := utils.CalculateMA(closesD1, 60)
+	ema25D1 := utils.CalculateEMA(closesD1, 25)
+	ema25D1now := ema25D1[len(ema25D1)-1]
+	if price > ema25D1now && price > ma60D1 && DIFUP {
+		MACDD1 = "BUYMACD"
+	} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
+		MACDD1 = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+	if c.Source == types.SourceBinance {
+		_, _, closesH4, _ = utils.GetKlinesByAPI(client, symbol, "4h", 200)
+	} else if c.Source == types.SourceOKX {
+		inst, _ = okxCache.RawSymbol(c.Symbol)
+		_, _, closesH4, _ = utils.GetKlinesByAPI_OKX(inst, "4h", 200)
+	}
+
+	ma60H4 := utils.CalculateMA(closesH4, 60)
+	ema25H4 := utils.CalculateEMA(closesH4, 25)
+	ema25H4now := ema25H4[len(ema25H4)-1]
+	if price > ema25H4now && price > ma60H4 {
+		if MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BUYLong",
+				Source:    c.Source,
+				Inst:      inst,
+			}, true
+		}
+	} else if price < ema25H4now && price < ma60H4 {
+		if MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "SellLong",
+				Source:    c.Source,
+				Inst:      inst,
+			}, true
+		}
+	} else {
+		return types.CoinIndicator{}, false
+	}
+
+	return types.CoinIndicator{}, false
+}
+
 func setHTTPClient(c *futures.Client) {
 	proxy, _ := url.Parse(proxyURL)
 	tr := &http.Transport{
@@ -356,6 +511,33 @@ func latestMessagesWaitingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msgs := telegram.GetLatestMessagesWaiting(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msgs)
+}
+
+func latestMessagesLongHandler(w http.ResponseWriter, r *http.Request) {
+	// 参数limit，默认5
+	limit := 5
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	msgs := telegram.GetLatestMessagesL(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msgs)
+}
+func latestMessagesWaitingLongHandler(w http.ResponseWriter, r *http.Request) {
+	// 参数limit，默认1
+	limit := 1
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	msgs := telegram.GetLatestMessagesWaitingL(limit)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
 }

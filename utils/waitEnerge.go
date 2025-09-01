@@ -44,7 +44,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	for _, token := range waitList {
 		if token.Operation == "BEBUY" || token.Operation == "OTBUY" {
 			emoje = "🟢🟢"
-		} else if token.Operation == "BESELL" || token.Operation == "OTSELL" {
+		} else if token.Operation == "BESELL" {
 			emoje = "🔴🔴"
 		} else {
 			emoje = "-"
@@ -70,52 +70,67 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 	waitMu.Unlock()
 
 	for sym, token := range waitCopy {
-		var MACDM5, MACDM15 string
+		var MACDM5, MACDM15, MACDH1 string
 
 		if sym == "BTCUSDT" || sym == "ETHUSDT" {
 			MACDM5, _ = GetTrendResult(db_trend, sym, "5m")
 			MACDM15, _ = GetTrendResult(db_trend, sym, "15m")
-			//MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
+			MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
 			//BuyMACDH4, _ := GetTrendResult(db, symbol, "4h")
 			//BuyMACDD1, _ := GetTrendResult(db, symbol, "1d")
 			//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 		} else {
-			var closesM15, closesM5 []float64
-			if token.Source == types.SourceBinance {
-				_, _, closesM5, _ = GetKlinesByAPI(client, sym, "5m", 200)
-			} else if token.Source == types.SourceOKX {
-				_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
-			}
-			price := closesM5[len(closesM5)-1]
-			ma60M5 := CalculateMA(closesM5, 60)
-			ema25M5 := CalculateEMA(closesM5, 25)
-			ema25M5now := ema25M5[len(ema25M5)-1]
-			if price > ema25M5now && price > ma60M5 {
-				MACDM5 = "BUYMACD"
-			} else if price < ema25M5now && price < ma60M5 {
-				MACDM5 = "SELLMACD"
-			}
+			var closesM15, closesM5, closesH1 []float64
+			//15分钟中时
 			if token.Source == types.SourceBinance {
 				_, _, closesM15, _ = GetKlinesByAPI(client, sym, "15m", 200)
 			} else if token.Source == types.SourceOKX {
 				_, _, closesM15, _ = GetKlinesByAPI_OKX(token.Inst, "15m", 200)
 			}
+			price := closesM15[len(closesM15)-1]
 			DIFUP := IsDIFUP(closesM15, 6, 13, 5)
-			DIFDOWN := IsDIFDOWN(closesM15, 6, 13, 5)
 			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
 			ema25M15now := ema25M15[len(ema25M15)-1]
 			if price > ema25M15now && price > ma60M15 && DIFUP {
 				MACDM15 = "BUYMACD"
-			} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
-				MACDM15 = "SELLMACD"
+			} else {
+				continue
+			}
+			//5分钟小时
+			if token.Source == types.SourceBinance {
+				_, _, closesM5, _ = GetKlinesByAPI(client, sym, "5m", 200)
+			} else if token.Source == types.SourceOKX {
+				_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
+			}
+			ma60M5 := CalculateMA(closesM5, 60)
+			ema25M5 := CalculateEMA(closesM5, 25)
+			ema25M5now := ema25M5[len(ema25M5)-1]
+			if price > ema25M5now && price > ma60M5 {
+				MACDM5 = "BUYMACD"
+			} else {
+				continue
+			}
+			//1小时大时
+			if token.Source == types.SourceBinance {
+				_, _, closesH1, _ = GetKlinesByAPI(client, sym, "1h", 200)
+			} else if token.Source == types.SourceOKX {
+				_, _, closesH1, _ = GetKlinesByAPI_OKX(token.Inst, "1h", 200)
+			}
+			ema25H1 := CalculateEMA(closesH1, 25)
+			ema25H1Now := ema25H1[len(ema25H1)-1]
+			UPUP := UPUP(closesH1, 6, 13, 5)
+			MACDUP := UPUP && price > ema25H1Now
+
+			if MACDUP {
+				MACDH1 = "BUYMACD"
 			} else {
 				continue
 			}
 		}
 		switch token.Operation {
 		case "BEBUY":
-			if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 				if token.LastPushedOperation != "BEBUY" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessage(wait_sucess_token, chatID, msg)
@@ -154,7 +169,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 			}
 		case "BESELL":
-			if MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+			if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "BESELL" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
@@ -195,7 +210,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 			}
 		case "OTBUY":
-			if MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
 				if token.LastPushedOperation != "OTBUY" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessage(wait_sucess_token, chatID, msg)
