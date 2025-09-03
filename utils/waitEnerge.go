@@ -44,7 +44,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	for _, token := range waitList {
 		if token.Operation == "BEBUY" || token.Operation == "OTBUY" {
 			emoje = "🟢🟢"
-		} else if token.Operation == "BESELL" {
+		} else if token.Operation == "BESELL" || token.Operation == "OTSELL" {
 			emoje = "🔴🔴"
 		} else {
 			emoje = "-"
@@ -89,11 +89,14 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			}
 			price := closesM15[len(closesM15)-1]
 			DIFUP := IsDIFUP(closesM15, 6, 13, 5)
+			DIFDOWN := IsDEADOWN(closesM15, 6, 13, 5)
 			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
 			ema25M15now := ema25M15[len(ema25M15)-1]
 			if price > ema25M15now && price > ma60M15 && DIFUP {
 				MACDM15 = "BUYMACD"
+			} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
+				MACDM15 = "SELLMACD"
 			} else {
 				continue
 			}
@@ -106,8 +109,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			ma60M5 := CalculateMA(closesM5, 60)
 			ema25M5 := CalculateEMA(closesM5, 25)
 			ema25M5now := ema25M5[len(ema25M5)-1]
-			if price > ema25M5now && price > ma60M5 {
+			UPUPM5 := UPUP(closesM5, 6, 13, 5)
+			DOWNDOWNM5 := DownDown(closesM5, 6, 13, 5)
+			if price > ema25M5now && price > ma60M5 && UPUPM5 {
 				MACDM5 = "BUYMACD"
+			} else if price < ema25M5now && price < ma60M5 && DOWNDOWNM5 {
+				MACDM5 = "SELLMACD"
 			} else {
 				continue
 			}
@@ -119,11 +126,14 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			}
 			ema25H1 := CalculateEMA(closesH1, 25)
 			ema25H1Now := ema25H1[len(ema25H1)-1]
-			UPUP := UPUP(closesH1, 6, 13, 5)
-			MACDUP := UPUP && price > ema25H1Now
-
+			UPUPH1 := UPUP(closesH1, 6, 13, 5)
+			DOWNDOWNH1 := DownDown(closesH1, 6, 13, 5)
+			MACDUP := UPUPH1 && price > ema25H1Now
+			MACDDOWN := DOWNDOWNH1 && price < ema25H1Now
 			if MACDUP {
 				MACDH1 = "BUYMACD"
+			} else if MACDDOWN {
+				MACDH1 = "SELLMACD"
 			} else {
 				continue
 			}
@@ -247,6 +257,44 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitList[sym] = t
 				waitMu.Unlock()
 			}
+		case "OTSELL":
+			if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+				if token.LastPushedOperation != "OTSELL" {
+					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+					waitMu.Lock()
+					t := waitList[sym]
+					t.LastPushedOperation = "OTSELL"
+					waitList[sym] = t
+					waitMu.Unlock()
+				}
+			} else if MACDM15 != "SELLMACD" {
+				log.Printf("❌ Wait失败 Sell : %s", sym)
+				waitMu.Lock()
+				// 如果之前推送过买入信号，而且还没发过“失效”消息
+				t := waitList[sym]
+				if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
+					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+					t.LastInvalidPushed = true
+					waitList[sym] = t
+				}
+				delete(waitList, sym) // 删除
+				waitMu.Unlock()
+				changed = true
+			} else {
+				log.Printf("❌ 信号失效，重置状态: %s", sym)
+				waitMu.Lock()
+				t := waitList[sym]
+				if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
+					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
+					telegram.SendMessage(wait_sucess_token, chatID, msg)
+				}
+				t.LastPushedOperation = "" // 清空，允许下次推送
+				t.LastInvalidPushed = true
+				waitList[sym] = t
+				waitMu.Unlock()
+			}
 		}
 
 		if now.Sub(token.AddedAt) > 8*time.Hour {
@@ -318,8 +366,8 @@ func drainResults(resultsChan chan []types.CoinIndicator, waiting_token, chatID 
 	}
 }
 
-// 公共的添加逻辑（含 BTC/ETH 优先规则）
-func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID string) {
+/* // 公共的添加逻辑（含 BTC/ETH 优先规则）
+func addToWaitListBYBE(newResults []types.CoinIndicator, waiting_token, chatID string) {
 	var newAdded bool
 	now := time.Now()
 
@@ -366,6 +414,47 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 			log.Printf("⏭ 忽略非BTC/ETH代币: %s，因为等待区已有BTC或ETH", coin.Symbol)
 			continue
 		}
+
+		exist, exists := waitList[coin.Symbol]
+		if !exists {
+			waitList[coin.Symbol] = waitToken{
+				Symbol:    coin.Symbol,
+				Inst:      coin.Inst,
+				Operation: coin.Operation,
+				Status:    coin.Status,
+				Source:    coin.Source,
+				AddedAt:   now,
+			}
+			log.Printf("✅ 添加等待代币: %s", coin.Symbol)
+			newAdded = true
+		}
+		if exists && exist.Operation != coin.Operation {
+			waitList[coin.Symbol] = waitToken{
+				Symbol:    coin.Symbol,
+				Inst:      coin.Inst,
+				Operation: coin.Operation,
+				Status:    coin.Status,
+				Source:    coin.Source,
+				AddedAt:   now,
+			}
+			log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
+			newAdded = true
+		}
+	}
+	waitMu.Unlock()
+
+	if newAdded {
+		sendWaitListBroadcast(now, waiting_token, chatID)
+	}
+} */
+
+// 公共的添加逻辑（含 BTC/ETH 优先规则）
+func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID string) {
+	var newAdded bool
+	now := time.Now()
+
+	waitMu.Lock()
+	for _, coin := range newResults {
 
 		exist, exists := waitList[coin.Symbol]
 		if !exists {

@@ -81,9 +81,11 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		ma60H4 := CalculateMA(closesH4, 60)
 		ema25H4 := CalculateEMA(closesH4, 25)
 		ema25H4now := ema25H4[len(ema25H4)-1]
-		if price > ema25H4now && price > ma60H4 {
+		UPUPH4 := UPUP(closesH4, 6, 13, 5)
+		DOWNDOWNH4 := DownDown(closesH4, 6, 13, 5)
+		if price > ema25H4now && price > ma60H4 && UPUPH4 {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now && price < ma60H4 {
+		} else if price < ema25H4now && price < ma60H4 && DOWNDOWNH4 {
 			MACDH4 = "SELLMACD"
 		}
 		if token.Source == types.SourceBinance {
@@ -112,10 +114,14 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		ema25D3 := CalculateEMA(closesD3, 25)
 		ema25D3Now := ema25D3[len(ema25D3)-1]
 		UPUP := UPUP(closesD3, 6, 13, 5)
+		DOWNDOWN := DownDown(closesD3, 6, 13, 5)
 		MACDUP := UPUP && price > ema25D3Now
+		MACDDOWN := DOWNDOWN && price < ema25D3Now
 
 		if MACDUP {
 			MACDD3 = "BUYMACD"
+		} else if MACDDOWN {
+			MACDD3 = "SELLMACD"
 		} else {
 			continue
 		}

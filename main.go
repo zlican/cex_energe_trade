@@ -35,9 +35,9 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 300000000
+	limitVolume               = 300000000 //3亿 USDT
 	okxCache                  *okx.VolumeCache
-	okxLimit                  = 250000000.0                                      // 2.5 亿                                    //3亿 USDT
+	okxLimit                  = 250000000.0                                      // 2.5 亿
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -302,7 +302,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
 		// ===== 模型1 ： Fomo模型  =====
-		if (MACDH1 == "BUYMACD" || MACDH1 == "RANGE") && MACDM15 == "BUYMACD" {
+		if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -313,7 +313,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 			}, true
 		}
 
-		if (MACDH1 == "SELLMACD" || MACDH1 == "RANGE") && MACDM15 == "SELLMACD" {
+		if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -325,8 +325,8 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 	} else {
-		var MACDH1, MACDM15 string
-		var closesH1, closesM15, closesM5 []float64
+		var MACDH1 string
+		var closesH1, closesM15 []float64
 		if c.Source == types.SourceBinance {
 			_, _, closesH1, _ = utils.GetKlinesByAPI(client, symbol, "1h", 200)
 		} else if c.Source == types.SourceOKX {
@@ -335,11 +335,17 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 		price := closesH1[len(closesH1)-1]
+		ema25H1 := utils.CalculateEMA(closesH1, 25)
+		ema25H1Now := ema25H1[len(ema25H1)-1]
 		UPUP := utils.UPUP(closesH1, 6, 13, 5)
-		MACDUP := UPUP
+		DOWNDOWN := utils.DownDown(closesH1, 6, 13, 5)
+		MACDUP := UPUP && price > ema25H1Now
+		MACDDOWN := DOWNDOWN && price < ema25H1Now
 
 		if MACDUP {
 			MACDH1 = "BUYMACD"
+		} else if MACDDOWN {
+			MACDH1 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
 		}
@@ -351,31 +357,28 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		}
 
 		DIFUP := utils.IsDIFUP(closesM15, 6, 13, 5)
+		DIFDOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
 		ma60M15 := utils.CalculateMA(closesM15, 60)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
 		ema25M15now := ema25M15[len(ema25M15)-1]
 		if price > ema25M15now && price > ma60M15 && DIFUP {
-			MACDM15 = "BUYMACD"
-		} else {
-			return types.CoinIndicator{}, false
-		}
-		if c.Source == types.SourceBinance {
-			_, _, closesM5, _ = utils.GetKlinesByAPI(client, symbol, "5m", 200)
-		} else if c.Source == types.SourceOKX {
-			inst, _ = okxCache.RawSymbol(c.Symbol)
-			_, _, closesM5, _ = utils.GetKlinesByAPI_OKX(inst, "5m", 200)
-		}
-
-		ma60M5 := utils.CalculateMA(closesM5, 60)
-		ema25M5 := utils.CalculateEMA(closesM5, 25)
-		ema25M5now := ema25M5[len(ema25M5)-1]
-		if price > ema25M5now && price > ma60M5 {
-			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTBUY",
+					Source:    c.Source,
+					Inst:      inst,
+				}, true
+			}
+		} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
+			if MACDH1 == "SELLMACD" {
+				status := "Wait"
+				return types.CoinIndicator{
+					Symbol:    symbol,
+					Status:    status,
+					Operation: "OTSELL",
 					Source:    c.Source,
 					Inst:      inst,
 				}, true
@@ -395,8 +398,8 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	symbol := c.Symbol
 	var inst string
 
-	var MACDD3, MACDD1 string
-	var closesD3, closesD1, closesH4 []float64
+	var MACDD3 string
+	var closesD3, closesD1 []float64
 	if c.Source == types.SourceBinance {
 		_, _, closesD3, _ = utils.GetKlinesByAPI(client, symbol, "3d", 200)
 	} else if c.Source == types.SourceOKX {
@@ -405,14 +408,14 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	}
 
 	price := closesD3[len(closesD3)-1]
+	EMA25D3 := utils.CalculateEMA(closesD3, 25)
+	EMA25D3NOW := EMA25D3[len(EMA25D3)-1]
 	UPUP := utils.UPUP(closesD3, 6, 13, 5)
 	DOWNDOWN := utils.DownDown(closesD3, 6, 13, 5)
-	MACDUP := UPUP
-	MACDDOWN := DOWNDOWN
+	MACDUP := UPUP && price > EMA25D3NOW
+	MACDDOWN := DOWNDOWN && price < EMA25D3NOW
 
-	if MACDUP && MACDDOWN {
-		MACDD3 = "RANGE"
-	} else if MACDUP {
+	if MACDUP {
 		MACDD3 = "BUYMACD"
 	} else if MACDDOWN {
 		MACDD3 = "SELLMACD"
@@ -432,24 +435,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	ema25D1 := utils.CalculateEMA(closesD1, 25)
 	ema25D1now := ema25D1[len(ema25D1)-1]
 	if price > ema25D1now && price > ma60D1 && DIFUP {
-		MACDD1 = "BUYMACD"
-	} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
-		MACDD1 = "SELLMACD"
-	} else {
-		return types.CoinIndicator{}, false
-	}
-	if c.Source == types.SourceBinance {
-		_, _, closesH4, _ = utils.GetKlinesByAPI(client, symbol, "4h", 200)
-	} else if c.Source == types.SourceOKX {
-		inst, _ = okxCache.RawSymbol(c.Symbol)
-		_, _, closesH4, _ = utils.GetKlinesByAPI_OKX(inst, "4h", 200)
-	}
-
-	ma60H4 := utils.CalculateMA(closesH4, 60)
-	ema25H4 := utils.CalculateEMA(closesH4, 25)
-	ema25H4now := ema25H4[len(ema25H4)-1]
-	if price > ema25H4now && price > ma60H4 {
-		if MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" {
+		if MACDD3 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -459,13 +445,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if price < ema25H4now && price < ma60H4 {
-		if MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" {
+	} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
+		if MACDD3 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
 				Status:    status,
-				Operation: "SellLong",
+				Operation: "SELLLong",
 				Source:    c.Source,
 				Inst:      inst,
 			}, true
@@ -473,7 +459,6 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	} else {
 		return types.CoinIndicator{}, false
 	}
-
 	return types.CoinIndicator{}, false
 }
 
