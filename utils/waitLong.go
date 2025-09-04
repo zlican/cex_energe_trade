@@ -73,11 +73,30 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 
 		var closesD3, closesD1, closesH4 []float64
 		if token.Source == types.SourceBinance {
+			_, _, closesD1, _ = GetKlinesByAPI(client, sym, "1d", 200)
+		} else if token.Source == types.SourceOKX {
+			_, _, closesD1, _ = GetKlinesByAPI_OKX(token.Inst, "1d", 200)
+		}
+		price := closesD1[len(closesD1)-1]
+		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
+		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
+		ma60D1 := CalculateMA(closesD1, 60)
+		ema25D1 := CalculateEMA(closesD1, 25)
+		ema25D1now := ema25D1[len(ema25D1)-1]
+		UPUPD1 := UPUP(closesD1, 6, 13, 5)
+		DOWNDOWND1 := DownDown(closesD1, 6, 13, 5)
+		if price > ema25D1now && price > ma60D1 && DIFUP && UPUPD1 {
+			MACDD1 = "BUYMACD"
+		} else if price < ema25D1now && price < ma60D1 && DIFDOWN && DOWNDOWND1 {
+			MACDD1 = "SELLMACD"
+		} else {
+			continue
+		}
+		if token.Source == types.SourceBinance {
 			_, _, closesH4, _ = GetKlinesByAPI(client, sym, "4h", 200)
 		} else if token.Source == types.SourceOKX {
 			_, _, closesH4, _ = GetKlinesByAPI_OKX(token.Inst, "4h", 200)
 		}
-		price := closesH4[len(closesH4)-1]
 		ma60H4 := CalculateMA(closesH4, 60)
 		ema25H4 := CalculateEMA(closesH4, 25)
 		ema25H4now := ema25H4[len(ema25H4)-1]
@@ -87,23 +106,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			MACDH4 = "BUYMACD"
 		} else if price < ema25H4now && price < ma60H4 && DOWNDOWNH4 {
 			MACDH4 = "SELLMACD"
-		}
-		if token.Source == types.SourceBinance {
-			_, _, closesD1, _ = GetKlinesByAPI(client, sym, "1d", 200)
-		} else if token.Source == types.SourceOKX {
-			_, _, closesD1, _ = GetKlinesByAPI_OKX(token.Inst, "1d", 200)
-		}
-		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
-		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
-		ma60D1 := CalculateMA(closesD1, 60)
-		ema25D1 := CalculateEMA(closesD1, 25)
-		ema25D1now := ema25D1[len(ema25D1)-1]
-		if price > ema25D1now && price > ma60D1 && DIFUP {
-			MACDD1 = "BUYMACD"
-		} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
-			MACDD1 = "SELLMACD"
-		} else {
-			continue
 		}
 		//1小时大时
 		if token.Source == types.SourceBinance {
@@ -139,7 +141,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if MACDD1 != "BUYMACD" {
+			} else if price < ema25D1now {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -180,7 +182,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if MACDD1 != "SELLMACD" {
+			} else if price > ema25D1now {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息

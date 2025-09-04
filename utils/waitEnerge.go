@@ -93,12 +93,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
 			ema25M15now := ema25M15[len(ema25M15)-1]
-			if price > ema25M15now && price > ma60M15 && DIFUP {
+			goldenM15 := IsGolden(closesM15, 6, 13, 5)
+			deadM15 := IsDead(closesM15, 6, 13, 5)
+			if price > ema25M15now && price > ma60M15 && DIFUP && goldenM15 {
 				MACDM15 = "BUYMACD"
-			} else if price < ema25M15now && price < ma60M15 && DIFDOWN {
+			} else if price < ema25M15now && price < ma60M15 && DIFDOWN && deadM15 {
 				MACDM15 = "SELLMACD"
-			} else {
-				continue
 			}
 			//5分钟小时
 			if token.Source == types.SourceBinance {
@@ -115,8 +115,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				MACDM5 = "BUYMACD"
 			} else if price < ema25M5now && price < ma60M5 && DOWNDOWNM5 {
 				MACDM5 = "SELLMACD"
-			} else {
-				continue
 			}
 			//1小时大时
 			if token.Source == types.SourceBinance {
@@ -126,16 +124,13 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			}
 			ema25H1 := CalculateEMA(closesH1, 25)
 			ema25H1Now := ema25H1[len(ema25H1)-1]
+			ma60H1 := CalculateMA(closesH1, 60)
 			UPUPH1 := UPUP(closesH1, 6, 13, 5)
 			DOWNDOWNH1 := DownDown(closesH1, 6, 13, 5)
-			MACDUP := UPUPH1 && price > ema25H1Now
-			MACDDOWN := DOWNDOWNH1 && price < ema25H1Now
-			if MACDUP {
+			if price > ema25H1Now && price > ma60H1 && UPUPH1 {
 				MACDH1 = "BUYMACD"
-			} else if MACDDOWN {
+			} else if price < ema25H1Now && price < ma60H1 && DOWNDOWNH1 {
 				MACDH1 = "SELLMACD"
-			} else {
-				continue
 			}
 		}
 		switch token.Operation {
