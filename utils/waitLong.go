@@ -49,7 +49,7 @@ func sendWaitListBroadcastL(now time.Time, waiting_token, chatID string) {
 			emoje = "-"
 		}
 
-		msgBuilder.WriteString(fmt.Sprintf("%s %-36s(%s)\n", emoje, token.Symbol, token.Source))
+		msgBuilder.WriteString(fmt.Sprintf("%s %-36s\n", emoje, token.Symbol))
 	}
 	msg := msgBuilder.String()
 	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitListL))
