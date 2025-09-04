@@ -192,8 +192,8 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		opens := make([]float64, 0, len(raw.Data))
 		closes := make([]float64, 0, len(raw.Data))
 
-		// Bitget 返回多为倒序（最新在前），这里倒置到时间正序（最早在前）
-		for i := len(raw.Data) - 1; i >= 0; i-- {
+		// raw.Data 已经是正序（最早在前），直接正序遍历
+		for i := 0; i < len(raw.Data); i++ {
 			row := raw.Data[i]
 			// 期待字段：[timestamp(ms), open, high, low, close, volume, amount]
 			if len(row) < 7 { // V2 返回 7 个字段，多了一个 amount
