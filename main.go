@@ -35,9 +35,9 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 300000000 //3亿 USDT
+	limitVolume               = 500000000 //5亿 USDT
 	okxCache                  *okx.VolumeCache
-	okxLimit                  = 250000000.0                                      // 2.5 亿
+	okxLimit                  = 300000000.0                                      // 3 亿
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -207,49 +207,46 @@ func main() {
 func runScan(client *futures.Client) error {
 	progressLogger.Println("开始新一轮扫描（BINANCE + OKX）...")
 
-	// ---------- 0. 优先分析 BTC, ETH, SOL ----------
+	// ---------- 0. 优先分析 BTC, ETH ----------
 	coreSymbols := []string{"BTCUSDT", "ETHUSDT"}
 	var results []types.CoinIndicator
 	for _, sym := range coreSymbols {
-		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym, Source: types.SourceBinance}, db_trend)
+		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym, Source: types.MarketBinance}, db_trend)
 		if ok {
 			results = append(results, ind)
 		}
 	}
 
-	// 如果有核心代币返回有效结果，跳过 candidates 遍历
-	if len(results) == 0 {
-		// ---------- 1. 构建合并候选 ----------
-		candidates := utils.BuildCandidates(volumeCache, okxCache, float64(limitVolume), okxLimit)
-		progressLogger.Printf("合并候选数量: %d", len(candidates))
+	// ---------- 1. 构建合并候选 ----------
+	candidates, _ := utils.GetHotCoins()
 
-		// ---------- 2. 并发分析 ----------
-		var (
-			resMu sync.Mutex
-			wg    sync.WaitGroup
-			sem   = semaphore.NewWeighted(int64(maxWorkers))
-		)
+	progressLogger.Printf("HOT候选数量: %d", len(candidates))
 
-		for _, c := range candidates {
-			if err := sem.Acquire(context.Background(), 1); err != nil {
-				progressLogger.Printf("semaphore acquire 失败: %v", err)
-				continue
-			}
-			wg.Add(1)
-			go func(c types.Candidate) {
-				defer wg.Done()
-				defer sem.Release(1)
-
-				ind, ok := analyseSymbol(client, c, db_trend)
-				if ok {
-					resMu.Lock()
-					results = append(results, ind)
-					resMu.Unlock()
-				}
-			}(c)
+	// ---------- 2. 并发分析 ----------
+	var (
+		resMu sync.Mutex
+		wg    sync.WaitGroup
+		sem   = semaphore.NewWeighted(int64(maxWorkers))
+	)
+	for _, c := range candidates {
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			progressLogger.Printf("semaphore acquire 失败: %v", err)
+			continue
 		}
-		wg.Wait()
+		wg.Add(1)
+		go func(c types.Candidate) {
+			defer wg.Done()
+			defer sem.Release(1)
+
+			ind, ok := analyseSymbol(client, c, db_trend)
+			if ok {
+				resMu.Lock()
+				results = append(results, ind)
+				resMu.Unlock()
+			}
+		}(c)
 	}
+	wg.Wait()
 
 	// ---------- 3. 发送等待区 channel ----------
 	select {
@@ -270,7 +267,7 @@ func runScanLong(client *futures.Client) error {
 	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "ETHBTC", "PAXGUSDT", "HYPEUSDT"}
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
-		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym, Source: types.SourceBinance})
+		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym, Source: types.MarketBinance})
 		if ok {
 			resultsLong = append(resultsLong, ind)
 		}
@@ -308,7 +305,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BEBUY",
-				Source:    types.SourceBinance,
+				Source:    types.MarketBinance,
 				Inst:      inst,
 			}, true
 		}
@@ -319,7 +316,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BESELL",
-				Source:    types.SourceBinance,
+				Source:    types.MarketBinance,
 				Inst:      inst,
 			}, true
 		}
@@ -327,11 +324,22 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 	} else {
 		var MACDH1 string
 		var closesH1, closesM15 []float64
-		if c.Source == types.SourceBinance {
-			_, _, closesH1, _ = utils.GetKlinesByAPI(client, symbol, "1h", 200)
-		} else if c.Source == types.SourceOKX {
+		if c.Source == types.MarketBinance {
+			_, _, closesH1, err = utils.GetKlinesByAPI(client, symbol, "1h", 200)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else if c.Source == types.MarketOKX {
 			inst, _ = okxCache.RawSymbol(c.Symbol)
-			_, _, closesH1, _ = utils.GetKlinesByAPI_OKX(inst, "1H", 200)
+			_, _, closesH1, err = utils.GetKlinesByAPI_OKX(inst, "1H", 200)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else if c.Source == types.MarketBitget {
+			_, _, closesH1, err = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "1h", 200)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 
 		price := closesH1[len(closesH1)-1]
@@ -348,11 +356,13 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		} else {
 			return types.CoinIndicator{}, false
 		}
-		if c.Source == types.SourceBinance {
+		if c.Source == types.MarketBinance {
 			_, _, closesM15, _ = utils.GetKlinesByAPI(client, symbol, "15m", 200)
-		} else if c.Source == types.SourceOKX {
+		} else if c.Source == types.MarketOKX {
 			inst, _ = okxCache.RawSymbol(c.Symbol)
 			_, _, closesM15, _ = utils.GetKlinesByAPI_OKX(inst, "15m", 200)
+		} else if c.Source == types.MarketBitget {
+			_, _, closesM15, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "15m", 200)
 		}
 
 		DIFUP := utils.IsDIFUP(closesM15, 6, 13, 5)
@@ -401,11 +411,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 
 	var MACDD3 string
 	var closesD3, closesD1 []float64
-	if c.Source == types.SourceBinance {
+	if c.Source == types.MarketBinance {
 		_, _, closesD3, _ = utils.GetKlinesByAPI(client, symbol, "3d", 200)
-	} else if c.Source == types.SourceOKX {
+	} else if c.Source == types.MarketOKX {
 		inst, _ = okxCache.RawSymbol(c.Symbol)
 		_, _, closesD3, _ = utils.GetKlinesByAPI_OKX(inst, "3d", 200)
+	} else if c.Source == types.MarketBitget {
+		_, _, closesD3, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "3d", 200)
 	}
 
 	price := closesD3[len(closesD3)-1]
@@ -422,11 +434,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	} else {
 		return types.CoinIndicator{}, false
 	}
-	if c.Source == types.SourceBinance {
+	if c.Source == types.MarketBinance {
 		_, _, closesD1, _ = utils.GetKlinesByAPI(client, symbol, "1d", 200)
-	} else if c.Source == types.SourceOKX {
+	} else if c.Source == types.MarketOKX {
 		inst, _ = okxCache.RawSymbol(c.Symbol)
 		_, _, closesD1, _ = utils.GetKlinesByAPI_OKX(inst, "1d", 200)
+	} else if c.Source == types.MarketBitget {
+		_, _, closesD1, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "1d", 200)
 	}
 
 	DIFUP := utils.IsDIFUP(closesD1, 6, 13, 5)

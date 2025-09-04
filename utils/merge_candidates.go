@@ -19,7 +19,7 @@ func BuildCandidates(binanceCache *types.VolumeCache, okxCache *okx.VolumeCache,
 		for _, s := range syms {
 			if v, ok := binanceCache.Get(s); ok {
 				out = append(out, types.Candidate{
-					Source:    types.SourceBinance,
+					Source:    types.MarketBinance,
 					Symbol:    s,
 					RawSymbol: s,
 					Volume24h: v,
@@ -40,7 +40,7 @@ func BuildCandidates(binanceCache *types.VolumeCache, okxCache *okx.VolumeCache,
 			if v, ok := okxCache.GetNotional(s); ok {
 				raw, _ := okxCache.RawSymbol(s)
 				out = append(out, types.Candidate{
-					Source:    types.SourceOKX,
+					Source:    types.MarketOKX,
 					Symbol:    s,
 					RawSymbol: raw,
 					Volume24h: v,

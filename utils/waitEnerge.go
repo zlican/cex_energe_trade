@@ -82,10 +82,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 		} else {
 			var closesM15, closesM5, closesH1 []float64
 			//15分钟中时
-			if token.Source == types.SourceBinance {
+			if token.Source == types.MarketBinance {
 				_, _, closesM15, _ = GetKlinesByAPI(client, sym, "15m", 200)
-			} else if token.Source == types.SourceOKX {
+			} else if token.Source == types.MarketOKX {
 				_, _, closesM15, _ = GetKlinesByAPI_OKX(token.Inst, "15m", 200)
+			} else if token.Source == types.MarketBitget {
+				_, _, closesM15, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "15m", 200)
 			}
 			price := closesM15[len(closesM15)-1]
 			DIFUP := IsDIFUP(closesM15, 6, 13, 5)
@@ -101,10 +103,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				MACDM15 = "SELLMACD"
 			}
 			//5分钟小时
-			if token.Source == types.SourceBinance {
+			if token.Source == types.MarketBinance {
 				_, _, closesM5, _ = GetKlinesByAPI(client, sym, "5m", 200)
-			} else if token.Source == types.SourceOKX {
+			} else if token.Source == types.MarketOKX {
 				_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
+			} else if token.Source == types.MarketBitget {
+				_, _, closesM5, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "5m", 200)
 			}
 			ma60M5 := CalculateMA(closesM5, 60)
 			ema25M5 := CalculateEMA(closesM5, 25)
@@ -117,10 +121,12 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				MACDM5 = "SELLMACD"
 			}
 			//1小时大时
-			if token.Source == types.SourceBinance {
+			if token.Source == types.MarketBinance {
 				_, _, closesH1, _ = GetKlinesByAPI(client, sym, "1h", 200)
-			} else if token.Source == types.SourceOKX {
+			} else if token.Source == types.MarketOKX {
 				_, _, closesH1, _ = GetKlinesByAPI_OKX(token.Inst, "1h", 200)
+			} else if token.Source == types.MarketBitget {
+				_, _, closesH1, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "1h", 200)
 			}
 			ema25H1 := CalculateEMA(closesH1, 25)
 			ema25H1Now := ema25H1[len(ema25H1)-1]

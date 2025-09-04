@@ -72,9 +72,9 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		var MACDH4, MACDD1, MACDD3 string
 
 		var closesD3, closesD1, closesH4 []float64
-		if token.Source == types.SourceBinance {
+		if token.Source == types.MarketBinance {
 			_, _, closesD1, _ = GetKlinesByAPI(client, sym, "1d", 200)
-		} else if token.Source == types.SourceOKX {
+		} else if token.Source == types.MarketOKX {
 			_, _, closesD1, _ = GetKlinesByAPI_OKX(token.Inst, "1d", 200)
 		}
 		price := closesD1[len(closesD1)-1]
@@ -92,9 +92,9 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		} else {
 			continue
 		}
-		if token.Source == types.SourceBinance {
+		if token.Source == types.MarketBinance {
 			_, _, closesH4, _ = GetKlinesByAPI(client, sym, "4h", 200)
-		} else if token.Source == types.SourceOKX {
+		} else if token.Source == types.MarketOKX {
 			_, _, closesH4, _ = GetKlinesByAPI_OKX(token.Inst, "4h", 200)
 		}
 		ma60H4 := CalculateMA(closesH4, 60)
@@ -108,9 +108,9 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			MACDH4 = "SELLMACD"
 		}
 		//1小时大时
-		if token.Source == types.SourceBinance {
+		if token.Source == types.MarketBinance {
 			_, _, closesD3, _ = GetKlinesByAPI(client, sym, "3d", 200)
-		} else if token.Source == types.SourceOKX {
+		} else if token.Source == types.MarketOKX {
 			_, _, closesD3, _ = GetKlinesByAPI_OKX(token.Inst, "3d", 200)
 		}
 		ema25D3 := CalculateEMA(closesD3, 25)
