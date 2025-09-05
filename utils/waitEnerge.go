@@ -58,6 +58,15 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 }
 
 func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
+	// 使用 defer 捕获可能的 panic
+	defer func() {
+		if r := recover(); r != nil {
+			// 记录 panic 信息，方便调试
+			fmt.Printf("[executeWaitCheck] Panic recovered \n")
+			// 返回默认值，表示处理失败
+			// 你也可以根据需求记录到日志文件或监控系统
+		}
+	}()
 	time.Sleep(7 * time.Second) // 保持你原来的延迟
 
 	var changed bool // 是否发生了删除
@@ -157,7 +166,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitMu.Unlock()
 				}
 			} else if MACDM15 != "BUYMACD" && MACDM15 != "XBUYMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitList[sym]
@@ -197,7 +205,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitMu.Unlock()
 				}
 			} else if MACDM15 != "SELLMACD" && MACDM15 != "XSELLMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitList[sym]
@@ -211,7 +218,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMu.Lock()
 				t := waitList[sym]
 				if t.LastPushedOperation == "BESELL" && !t.LastInvalidPushed {
@@ -235,7 +241,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitMu.Unlock()
 				}
 			} else if MACDM15 != "BUYMACD" && MACDM15 != "XBUYMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitList[sym]
@@ -249,7 +254,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMu.Lock()
 				t := waitList[sym]
 				if t.LastPushedOperation == "OTBUY" && !t.LastInvalidPushed {
@@ -273,7 +277,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitMu.Unlock()
 				}
 			} else if MACDM15 != "SELLMACD" && MACDM15 != "XSELLMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitList[sym]
@@ -287,7 +290,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMu.Lock()
 				t := waitList[sym]
 				if t.LastPushedOperation == "OTSELL" && !t.LastInvalidPushed {
@@ -302,7 +304,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 		}
 
 		if now.Sub(token.AddedAt) > 8*time.Hour {
-			log.Printf("⏰ Wait超时清理 : %s", sym)
 			waitMu.Lock()
 			delete(waitList, sym)
 			waitMu.Unlock()
@@ -470,7 +471,6 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 				Source:    coin.Source,
 				AddedAt:   now,
 			}
-			log.Printf("✅ 添加等待代币: %s", coin.Symbol)
 			newAdded = true
 		}
 		if exists && exist.Operation != coin.Operation {
@@ -482,7 +482,6 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 				Source:    coin.Source,
 				AddedAt:   now,
 			}
-			log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
 			newAdded = true
 		}
 	}

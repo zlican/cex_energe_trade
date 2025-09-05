@@ -15,7 +15,7 @@ import (
 type MarketSource string // MarketSource 定义交易所来源
 
 // GetHotCoins 获取热门交易对列表并适配为 Bitget 格式
-func GetHotCoins() ([]types.Candidate, error) {
+func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 	const (
 		maxRetries     = 3
 		requestTimeout = 7 * time.Second
@@ -103,11 +103,36 @@ func GetHotCoins() ([]types.Candidate, error) {
 			return nil, fmt.Errorf("empty symbol list from hot_trade_volume")
 		}
 
-		// 构造 Candidate 数组，适配 Bitget  Ascending
-		candidates := make([]types.Candidate, 0, len(symbols))
+		// 构造 slipCoin 的币种集合（去掉 USDT/USDC 后缀）
+		slipSet := make(map[string]struct{})
+		for _, sc := range slipCoin {
+			// 去掉 USDT 或 USDC 后缀，提取纯币种名称
+			coin := strings.TrimSuffix(strings.TrimSuffix(sc, "USDT"), "USDC")
+			// 去掉可能的 "1000" 前缀（如 1000PEPE、1000BONK）
+			coin = strings.TrimPrefix(coin, "1000")
+			slipSet[strings.ToUpper(coin)] = struct{}{}
+		}
+
+		// 过滤 symbols，排除 slipCoin 中的币种
+		filteredSymbols := make([]string, 0, len(symbols))
 		for _, sym := range symbols {
-			// 规范化符号：假设为 USDT 交易对，添加 USDT 后缀
-			normalizedSymbol := strings.ToUpper(sym) + "USDT"
+			// 规范化符号为大写
+			normalizedSym := strings.ToUpper(sym)
+			// 检查是否在 slipSet 中
+			if _, exists := slipSet[normalizedSym]; !exists {
+				filteredSymbols = append(filteredSymbols, normalizedSym)
+			}
+		}
+
+		if len(filteredSymbols) == 0 {
+			return nil, fmt.Errorf("all symbols filtered out by slipCoin")
+		}
+
+		// 构造 Candidate 数组，适配 Bitget Ascending
+		candidates := make([]types.Candidate, 0, len(filteredSymbols))
+		for _, sym := range filteredSymbols {
+			// 规范化符号：添加 USDT 后缀
+			normalizedSymbol := sym + "USDT"
 			// Bitget 原始符号：添加 _UMCBL 后缀
 			rawSymbol := normalizedSymbol + "_UMCBL"
 

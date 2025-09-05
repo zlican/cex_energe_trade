@@ -57,9 +57,10 @@ var (
 		"WLDUSDT", "FILUSDT", "TAOUSDT", "CRVUSDT", "FETUSDT", "INJUSDT", "1000BONKUSDC",
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
-		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "SUIUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "WLFIUSDT", "BERAUSDT", "PEPEUSDT",
-		"SOLUSDT", "HYPEUSDT", "MITOUSDT"} // 想排除的币放这里
+		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "OPUSDT",
+		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "BERAUSDT", "PEPEUSDT",
+		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT",
+	} // 想排除的币放这里
 	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
@@ -217,7 +218,7 @@ func runScan(client *futures.Client) error {
 	}
 
 	// ---------- 1. 构建合并候选 ----------
-	candidates, _ := utils.GetHotCoins()
+	candidates, _ := utils.GetHotCoins(slipCoin)
 
 	progressLogger.Printf("HOT候选数量: %d", len(candidates))
 
@@ -285,7 +286,15 @@ func runScanLong(client *futures.Client) error {
 /* ====================== 单币分析 ====================== */
 
 func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) (types.CoinIndicator, bool) {
-
+	// 使用 defer 捕获可能的 panic
+	defer func() {
+		if r := recover(); r != nil {
+			// 记录 panic 信息，方便调试
+			fmt.Printf("[analyseSymbol] Panic recovered for symbol %s: %v\n", c.Symbol, r)
+			// 返回默认值，表示处理失败
+			// 你也可以根据需求记录到日志文件或监控系统
+		}
+	}()
 	symbol := c.Symbol
 	var inst string
 	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
@@ -391,7 +400,15 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 /* ====================== 单币分析 ====================== */
 
 func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
-
+	// 使用 defer 捕获可能的 panic
+	defer func() {
+		if r := recover(); r != nil {
+			// 记录 panic 信息，方便调试
+			fmt.Printf("[analyseSymbolLong] Panic recovered for symbol %s: %v\n", c.Symbol, r)
+			// 返回默认值，表示处理失败
+			// 你也可以根据需求记录到日志文件或监控系统
+		}
+	}()
 	symbol := c.Symbol
 	var inst string
 

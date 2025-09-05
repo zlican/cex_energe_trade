@@ -57,6 +57,15 @@ func sendWaitListBroadcastL(now time.Time, waiting_token, chatID string) {
 }
 
 func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
+	// 使用 defer 捕获可能的 panic
+	defer func() {
+		if r := recover(); r != nil {
+			// 记录 panic 信息，方便调试
+			fmt.Printf("[executeWaitCheckL] Panic recovered \n")
+			// 返回默认值，表示处理失败
+			// 你也可以根据需求记录到日志文件或监控系统
+		}
+	}()
 	time.Sleep(7 * time.Second) // 保持你原来的延迟
 
 	var changed bool // 是否发生了删除
@@ -141,7 +150,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitMuL.Unlock()
 				}
 			} else if MACDD1 != "BUYMACD" && MACDD1 != "XBUYMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]
@@ -155,7 +163,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMuL.Lock()
 				t := waitListL[sym]
 				if t.LastPushedOperation == "BUYLong" && !t.LastInvalidPushed {
@@ -182,7 +189,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitMuL.Unlock()
 				}
 			} else if MACDD1 != "SELLMACD" && MACDD1 != "XSELLMID" {
-				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]
@@ -196,7 +202,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMuL.Lock()
 				t := waitListL[sym]
 				if t.LastPushedOperation == "SELLLong" && !t.LastInvalidPushed {
@@ -209,7 +214,6 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 			}
 			if now.Sub(token.AddedAt) > 48*time.Hour {
-				log.Printf("⏰ Wait超时清理 : %s", sym)
 				waitMuL.Lock()
 				delete(waitListL, sym)
 				waitMuL.Unlock()
@@ -291,7 +295,6 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 				Source:    coin.Source,
 				AddedAt:   now,
 			}
-			log.Printf("✅ 添加等待代币: %s", coin.Symbol)
 			newAdded = true
 		}
 		if exists && exist.Operation != coin.Operation {
@@ -303,7 +306,6 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 				Source:    coin.Source,
 				AddedAt:   now,
 			}
-			log.Printf("♻️ 更新等待代币: %s", coin.Symbol)
 			newAdded = true
 		}
 	}
