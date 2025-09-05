@@ -78,19 +78,23 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			_, _, closesD1, _ = GetKlinesByAPI_OKX(token.Inst, "1d", 200)
 		}
 		price := closesD1[len(closesD1)-1]
-		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
-		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
+		DEAUP := IsDEAUP(closesD1, 6, 13, 5)
+		DEADOWN := IsDEADOWN(closesD1, 6, 13, 5)
 		ma60D1 := CalculateMA(closesD1, 60)
 		ema25D1 := CalculateEMA(closesD1, 25)
 		ema25D1now := ema25D1[len(ema25D1)-1]
-		UPUPD1 := UPUP(closesD1, 6, 13, 5)
-		DOWNDOWND1 := DownDown(closesD1, 6, 13, 5)
-		if price > ema25D1now && price > ma60D1 && DIFUP && UPUPD1 {
+		if price > ema25D1now && price > ma60D1 && DEAUP {
 			MACDD1 = "BUYMACD"
-		} else if price < ema25D1now && price < ma60D1 && DIFDOWN && DOWNDOWND1 {
+		} else if price < ema25D1now && price < ma60D1 && DEADOWN {
 			MACDD1 = "SELLMACD"
-		} else {
-			continue
+		}
+		XSTRONGUPD1 := XSTRONGUP(closesD1, 6, 13, 5)
+		if XSTRONGUPD1 && price > ma60D1 {
+			MACDD1 = "XBUYMID"
+		}
+		XSTRONGDOWND1 := XSTRONGDOWN(closesD1, 6, 13, 5)
+		if XSTRONGDOWND1 && price < ma60D1 {
+			MACDD1 = "XSELLMID"
 		}
 		if token.Source == types.MarketBinance {
 			_, _, closesH4, _ = GetKlinesByAPI(client, sym, "4h", 200)
@@ -98,13 +102,11 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			_, _, closesH4, _ = GetKlinesByAPI_OKX(token.Inst, "4h", 200)
 		}
 		ma60H4 := CalculateMA(closesH4, 60)
-		ema25H4 := CalculateEMA(closesH4, 25)
-		ema25H4now := ema25H4[len(ema25H4)-1]
-		UPUPH4 := UPUP(closesH4, 6, 13, 5)
-		DOWNDOWNH4 := DownDown(closesH4, 6, 13, 5)
-		if price > ema25H4now && price > ma60H4 && UPUPH4 {
+		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
+		XSTRONGDOWNH4 := XSTRONGDOWN(closesH4, 6, 13, 5)
+		if price > ma60H4 && XSTRONGUPH4 {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now && price < ma60H4 && DOWNDOWNH4 {
+		} else if price < ma60H4 && XSTRONGDOWNH4 {
 			MACDH4 = "SELLMACD"
 		}
 		//1小时大时
@@ -115,22 +117,19 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		}
 		ema25D3 := CalculateEMA(closesD3, 25)
 		ema25D3Now := ema25D3[len(ema25D3)-1]
-		UPUP := UPUP(closesD3, 6, 13, 5)
-		DOWNDOWN := DownDown(closesD3, 6, 13, 5)
-		MACDUP := UPUP && price > ema25D3Now
-		MACDDOWN := DOWNDOWN && price < ema25D3Now
+		ma60D3 := CalculateMA(closesD3, 60)
+		DEAUPD3 := IsDEAUP(closesD3, 6, 13, 5)
+		DEADOWND3 := IsDEADOWN(closesD3, 6, 13, 5)
 
-		if MACDUP {
+		if DEAUPD3 && price > ema25D3Now && price > ma60D3 {
 			MACDD3 = "BUYMACD"
-		} else if MACDDOWN {
+		} else if DEADOWND3 && price < ema25D3Now && price < ma60D3 {
 			MACDD3 = "SELLMACD"
-		} else {
-			continue
 		}
 
 		switch token.Operation {
 		case "BUYLong":
-			if MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" {
+			if MACDD3 == "BUYMACD" && ((MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD") || MACDD1 == "XBUYMID") {
 				if token.LastPushedOperation != "BUYLong" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
@@ -141,7 +140,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if price < ema25D1now {
+			} else if MACDD1 != "BUYMACD" && MACDD1 != "XBUYMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -169,7 +168,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 			}
 		case "SELLLong":
-			if MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD" {
+			if MACDD3 == "SELLMACD" && ((MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD") || MACDD1 == "XSELLMID") {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "SELLLong" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
@@ -182,7 +181,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if price > ema25D1now {
+			} else if MACDD1 != "SELLMACD" && MACDD1 != "XSELLMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息

@@ -205,7 +205,6 @@ func main() {
 }
 
 func runScan(client *futures.Client) error {
-	progressLogger.Println("开始新一轮扫描（BINANCE + OKX）...")
 
 	// ---------- 0. 优先分析 BTC, ETH ----------
 	coreSymbols := []string{"BTCUSDT", "ETHUSDT"}
@@ -299,7 +298,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
 
 		// ===== 模型1 ： Fomo模型  =====
-		if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" {
+		if MACDH1 == "BUYMACD" && (MACDM15 == "BUYMACD" || MACDM15 == "XBUYMID") {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -310,7 +309,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 			}, true
 		}
 
-		if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" {
+		if MACDH1 == "SELLMACD" && (MACDM15 == "SELLMACD" || MACDM15 == "XSELLMID") {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -346,12 +345,12 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 		ema25H1 := utils.CalculateEMA(closesH1, 25)
 		ema25H1Now := ema25H1[len(ema25H1)-1]
 		ma60H1 := utils.CalculateMA(closesH1, 60)
-		UPUP := utils.UPUP(closesH1, 6, 13, 5)
-		DOWNDOWN := utils.DownDown(closesH1, 6, 13, 5)
+		DEAUP := utils.IsDEAUP(closesH1, 6, 13, 5)
+		DEADOWN := utils.IsDEADOWN(closesH1, 6, 13, 5)
 
-		if price > ema25H1Now && price > ma60H1 && UPUP {
+		if price > ema25H1Now && price > ma60H1 && DEAUP {
 			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now && price < ma60H1 && DOWNDOWN {
+		} else if price < ema25H1Now && price < ma60H1 && DEADOWN {
 			MACDH1 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
@@ -365,31 +364,18 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 			_, _, closesM15, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "15m", 200)
 		}
 
-		DIFUP := utils.IsDIFUP(closesM15, 6, 13, 5)
-		DIFDOWN := utils.IsDEADOWN(closesM15, 6, 13, 5)
+		DEAUPM15 := utils.IsDEAUP(closesM15, 6, 13, 5)
 		ma60M15 := utils.CalculateMA(closesM15, 60)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
 		ema25M15now := ema25M15[len(ema25M15)-1]
-		goldenM15 := utils.IsGolden(closesM15, 6, 13, 5)
-		deadM15 := utils.IsDead(closesM15, 6, 13, 5)
-		if price > ema25M15now && price > ma60M15 && DIFUP && goldenM15 {
+		XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5)
+		if (price > ema25M15now && price > ma60M15 && DEAUPM15) || (XSTRONGUPM15 && price > ma60M15) {
 			if MACDH1 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTBUY",
-					Source:    c.Source,
-					Inst:      inst,
-				}, true
-			}
-		} else if price < ema25M15now && price < ma60M15 && DIFDOWN && deadM15 {
-			if MACDH1 == "SELLMACD" {
-				status := "Wait"
-				return types.CoinIndicator{
-					Symbol:    symbol,
-					Status:    status,
-					Operation: "OTSELL",
 					Source:    c.Source,
 					Inst:      inst,
 				}, true
@@ -424,12 +410,12 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	EMA25D3 := utils.CalculateEMA(closesD3, 25)
 	EMA25D3NOW := EMA25D3[len(EMA25D3)-1]
 	ma60D3 := utils.CalculateMA(closesD3, 60)
-	UPUP := utils.UPUP(closesD3, 6, 13, 5)
-	DOWNDOWN := utils.DownDown(closesD3, 6, 13, 5)
+	DEAUP := utils.IsDEAUP(closesD3, 6, 13, 5)
+	DEADOWN := utils.IsDEADOWN(closesD3, 6, 13, 5)
 
-	if price > EMA25D3NOW && price > ma60D3 && UPUP {
+	if price > EMA25D3NOW && price > ma60D3 && DEAUP {
 		MACDD3 = "BUYMACD"
-	} else if price < EMA25D3NOW && price < ma60D3 && DOWNDOWN {
+	} else if price < EMA25D3NOW && price < ma60D3 && DEADOWN {
 		MACDD3 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
@@ -443,14 +429,16 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 		_, _, closesD1, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "1d", 200)
 	}
 
-	DIFUP := utils.IsDIFUP(closesD1, 6, 13, 5)
-	DIFDOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+	DEAUPD1 := utils.IsDEAUP(closesD1, 6, 13, 5)
+	DEADOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 	ma60D1 := utils.CalculateMA(closesD1, 60)
 	ema25D1 := utils.CalculateEMA(closesD1, 25)
 	ema25D1now := ema25D1[len(ema25D1)-1]
-	goldenD1 := utils.IsGolden(closesD1, 6, 13, 5)
-	deadD1 := utils.IsDead(closesD1, 6, 13, 5)
-	if price > ema25D1now && price > ma60D1 && DIFUP && goldenD1 {
+
+	XSTRONGUPD1 := utils.XSTRONGUP(closesD1, 6, 13, 5)
+	XSTRONGDOWND1 := utils.XSTRONGDOWN(closesD1, 6, 13, 5)
+
+	if (price > ema25D1now && price > ma60D1 && DEAUPD1) || (XSTRONGUPD1 && price > ma60D1) {
 		if MACDD3 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -461,7 +449,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if price < ema25D1now && price < ma60D1 && DIFDOWN && deadD1 {
+	} else if (price < ema25D1now && price < ma60D1 && DEADOWND1) || (XSTRONGDOWND1 && price < ma60D1) {
 		if MACDD3 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{

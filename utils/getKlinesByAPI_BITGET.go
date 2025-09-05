@@ -32,6 +32,7 @@ type BitgetKline struct {
 
 // 正确实例：https://api.bitget.com/api/v2/mix/market/candles?symbol=BTCUSDT&productType=umcbl&granularity=1H&limit=100
 func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit int) ([]*BitgetKline, []float64, []float64, error) {
+
 	const (
 		maxRetries      = 3
 		requestTimeout  = 7 * time.Second
@@ -41,6 +42,15 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		minLimitAllowed = 1
 	)
 	var lastErr error
+	// Symbol filtering
+	// 1. Remove leading "1000" if present
+	if strings.HasPrefix(symbol, "1000") {
+		symbol = strings.TrimPrefix(symbol, "1000")
+	}
+	// 2. Remove trailing "OFFICIAL" if present
+	if strings.HasSuffix(symbol, "OFFICIAL") {
+		symbol = strings.TrimSuffix(symbol, "OFFICIAL")
+	}
 
 	// 验证 symbol（仅为交易对，如 BTCUSDT）
 	if strings.Contains(symbol, "_") {

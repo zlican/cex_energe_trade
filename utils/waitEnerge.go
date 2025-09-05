@@ -90,17 +90,23 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				_, _, closesM15, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "15m", 200)
 			}
 			price := closesM15[len(closesM15)-1]
-			DIFUP := IsDIFUP(closesM15, 6, 13, 5)
-			DIFDOWN := IsDEADOWN(closesM15, 6, 13, 5)
+			DEAUPM15 := IsDEAUP(closesM15, 6, 13, 5)
+			DEADOWNM15 := IsDEADOWN(closesM15, 6, 13, 5)
 			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
 			ema25M15now := ema25M15[len(ema25M15)-1]
-			goldenM15 := IsGolden(closesM15, 6, 13, 5)
-			deadM15 := IsDead(closesM15, 6, 13, 5)
-			if price > ema25M15now && price > ma60M15 && DIFUP && goldenM15 {
+			if price > ema25M15now && price > ma60M15 && DEAUPM15 {
 				MACDM15 = "BUYMACD"
-			} else if price < ema25M15now && price < ma60M15 && DIFDOWN && deadM15 {
+			} else if price < ema25M15now && price < ma60M15 && DEADOWNM15 {
 				MACDM15 = "SELLMACD"
+			}
+			XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
+			if XSTRONGUPM15 && price > ma60M15 {
+				MACDM15 = "XBUYMID"
+			}
+			XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
+			if XSTRONGDOWNM15 && price < ma60M15 {
+				MACDM15 = "XSELLMID"
 			}
 			//5分钟小时
 			if token.Source == types.MarketBinance {
@@ -111,13 +117,11 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				_, _, closesM5, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "5m", 200)
 			}
 			ma60M5 := CalculateMA(closesM5, 60)
-			ema25M5 := CalculateEMA(closesM5, 25)
-			ema25M5now := ema25M5[len(ema25M5)-1]
-			UPUPM5 := UPUP(closesM5, 6, 13, 5)
-			DOWNDOWNM5 := DownDown(closesM5, 6, 13, 5)
-			if price > ema25M5now && price > ma60M5 && UPUPM5 {
+			XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
+			XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
+			if price > ma60M5 && XSTRONGUPM5 {
 				MACDM5 = "BUYMACD"
-			} else if price < ema25M5now && price < ma60M5 && DOWNDOWNM5 {
+			} else if price < ma60M5 && XSTRONGDOWNM5 {
 				MACDM5 = "SELLMACD"
 			}
 			//1小时大时
@@ -131,17 +135,17 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			ema25H1 := CalculateEMA(closesH1, 25)
 			ema25H1Now := ema25H1[len(ema25H1)-1]
 			ma60H1 := CalculateMA(closesH1, 60)
-			UPUPH1 := UPUP(closesH1, 6, 13, 5)
-			DOWNDOWNH1 := DownDown(closesH1, 6, 13, 5)
-			if price > ema25H1Now && price > ma60H1 && UPUPH1 {
+			DEAUPH1 := IsDEAUP(closesH1, 6, 13, 5)
+			DEADOWNH1 := IsDEADOWN(closesH1, 6, 13, 5)
+			if price > ema25H1Now && price > ma60H1 && DEAUPH1 {
 				MACDH1 = "BUYMACD"
-			} else if price < ema25H1Now && price < ma60H1 && DOWNDOWNH1 {
+			} else if price < ema25H1Now && price < ma60H1 && DEADOWNH1 {
 				MACDH1 = "SELLMACD"
 			}
 		}
 		switch token.Operation {
 		case "BEBUY":
-			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" && ((MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD") || MACDM15 == "XBUYMID") {
 				if token.LastPushedOperation != "BEBUY" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessage(wait_sucess_token, chatID, msg)
@@ -152,7 +156,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitList[sym] = t
 					waitMu.Unlock()
 				}
-			} else if MACDM15 != "BUYMACD" {
+			} else if MACDM15 != "BUYMACD" && MACDM15 != "XBUYMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -167,7 +171,6 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 				changed = true
 			} else {
-				log.Printf("❌ 信号失效，重置状态: %s", sym)
 				waitMu.Lock()
 				t := waitList[sym]
 				if t.LastPushedOperation == "BEBUY" && !t.LastInvalidPushed {
@@ -180,7 +183,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 			}
 		case "BESELL":
-			if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+			if MACDH1 == "SELLMACD" && ((MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD") || MACDM15 == "XSELLMID") {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "BESELL" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
@@ -193,7 +196,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitList[sym] = t
 					waitMu.Unlock()
 				}
-			} else if MACDM15 != "SELLMACD" {
+			} else if MACDM15 != "SELLMACD" && MACDM15 != "XSELLMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -221,7 +224,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 			}
 		case "OTBUY":
-			if MACDH1 == "BUYMACD" && MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD" {
+			if MACDH1 == "BUYMACD" && ((MACDM15 == "BUYMACD" && MACDM5 == "BUYMACD") || MACDM15 == "XBUYMID") {
 				if token.LastPushedOperation != "OTBUY" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessage(wait_sucess_token, chatID, msg)
@@ -231,7 +234,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitList[sym] = t
 					waitMu.Unlock()
 				}
-			} else if MACDM15 != "BUYMACD" {
+			} else if MACDM15 != "BUYMACD" && MACDM15 != "XBUYMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -259,7 +262,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				waitMu.Unlock()
 			}
 		case "OTSELL":
-			if MACDH1 == "SELLMACD" && MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD" {
+			if MACDH1 == "SELLMACD" && ((MACDM15 == "SELLMACD" && MACDM5 == "SELLMACD") || MACDM15 == "XSELLMID") {
 				if token.LastPushedOperation != "OTSELL" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
 					telegram.SendMessage(wait_sucess_token, chatID, msg)
@@ -269,7 +272,7 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 					waitList[sym] = t
 					waitMu.Unlock()
 				}
-			} else if MACDM15 != "SELLMACD" {
+			} else if MACDM15 != "SELLMACD" && MACDM15 != "XSELLMID" {
 				log.Printf("❌ Wait失败 Sell : %s", sym)
 				waitMu.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
