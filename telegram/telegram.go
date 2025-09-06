@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -49,13 +50,11 @@ func SendMessage(botToken, chatID, text string) error {
 		return fmt.Errorf("解析代理地址失败: %w", err)
 	}
 
-	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
-	}
-
 	client := &http.Client{
-		Transport: transport,
-		Timeout:   10 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		},
+		Timeout: 10 * time.Second,
 	}
 	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, botToken)
 
@@ -69,29 +68,34 @@ func SendMessage(botToken, chatID, text string) error {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
+	backoff := 1 * time.Second
 	var lastErr error
+
 	for attempt := 1; attempt <= 3; attempt++ {
 		resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonMessage))
-		if err != nil {
-			lastErr = fmt.Errorf("failed to send message: %w", err)
-		} else {
-			if resp.StatusCode != http.StatusOK {
-				lastErr = fmt.Errorf("received non-200 response (attempt %d): %s", attempt, resp.Status)
-			} else {
+		if err == nil && resp.StatusCode == http.StatusOK {
+			resp.Body.Close()
+			// 记录已发送消息
+			AddMessage(SavedMessage{
+				Text:      text,
+				Timestamp: time.Now(),
+			})
+			return nil
+		}
 
-				AddMessage(SavedMessage{
-					Text:      text,
-					Timestamp: time.Now(),
-				})
-				resp.Body.Close()
-				return nil
-			}
+		if err != nil {
+			lastErr = fmt.Errorf("发送失败 (尝试 %d): %w", attempt, err)
+		} else {
+			lastErr = fmt.Errorf("非 200 返回 (尝试 %d): %s", attempt, resp.Status)
 			resp.Body.Close()
 		}
-		time.Sleep(500 * time.Millisecond)
+
+		log.Printf("[Telegram] ❌ %v，等待 %v 后重试", lastErr, backoff)
+		time.Sleep(backoff)
+		backoff *= 2 // 指数退避
 	}
 
-	return fmt.Errorf("多次发送失败: %w", lastErr)
+	return fmt.Errorf("最终发送失败: %w", lastErr)
 }
 
 // AddMessage 添加一条消息，超出maxSize自动删除最早的
