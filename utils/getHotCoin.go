@@ -127,7 +127,8 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 		}
 
 		// 构造 Candidate 数组，适配 Bitget Ascending
-		candidates := make([]types.Candidate, 0, len(filteredSymbols))
+		candidates := make([]types.Candidate, 0, len(filteredSymbols)+2) // +2 for BTCUSDT and ETHUSDT
+		symbolSet := make(map[string]struct{})                           // To track symbols and avoid duplicates
 		for _, sym := range filteredSymbols {
 			// 规范化符号：添加 USDT 后缀
 			normalizedSymbol := sym + "USDT"
@@ -139,6 +140,18 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 				RawSymbol: rawSymbol,
 				Volume24h: 0.0, // 暂时设为 0，需额外接口获取
 			})
+			symbolSet[normalizedSymbol] = struct{}{} // Track added symbols
+		}
+
+		// 确保 BTCUSDT 和 ETHUSDT 存在
+		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT"} {
+			if _, exists := symbolSet[mustHave]; !exists {
+				candidates = append(candidates, types.Candidate{
+					Symbol:    mustHave,
+					RawSymbol: mustHave + "_UMCBL",
+					Volume24h: 0.0,
+				})
+			}
 		}
 
 		return candidates, nil

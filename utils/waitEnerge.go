@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"database/sql"
 	"energe/telegram"
 	"energe/types"
 	"fmt"
@@ -40,9 +39,9 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 	var emoji string
 
 	for _, token := range waitList {
-		if token.Operation == "BEBUY" || token.Operation == "OTBUY" {
+		if token.Operation == "BUY" {
 			emoji = "🟢🟢"
-		} else if token.Operation == "BESELL" || token.Operation == "OTSELL" {
+		} else if token.Operation == "SELL" {
 			emoji = "🔴🔴"
 		} else {
 			emoji = "-"
@@ -57,7 +56,7 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 // handleOperation 处理单一操作（BEBUY/BESELL/OTBUY/OTSELL）的通用逻辑
 // 返回值：bool 表示是否从 waitList 删除该代币
 func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID string) bool {
-	isBuy := token.Operation == "BEBUY" || token.Operation == "OTBUY"
+	isBuy := token.Operation == "BUY"
 	emoji := "🟢"
 	validMACD15 := "BUYMACD"
 	validXMid := "XBUYMID"
@@ -121,7 +120,7 @@ func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_
 	return false
 }
 
-func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
+func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
 	// 使用 defer 捕获可能的 panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -149,82 +148,75 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 	for sym, token := range waitCopy {
 		var MACDM5, MACDM15, MACDH1 string
 
-		if sym == "BTCUSDT" || sym == "ETHUSDT" {
-			// 错误注释：忽略 GetTrendResult 的错误，可能导致 MACD 值为空，需检查数据库连接
-			MACDM5, _ = GetTrendResult(db_trend, sym, "5m")
-			MACDM15, _ = GetTrendResult(db_trend, sym, "15m")
-			MACDH1, _ = GetTrendResult(db_trend, sym, "1h")
-		} else {
-			var closesM15, closesM5, closesH1 []float64
-			var err error
-			// 获取 15 分钟 K 线数据
-			closesM15, err = GetClosesWithFallback(client, sym, "15m")
-			if err != nil || len(closesM15) == 0 {
-				// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-				fmt.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
-				continue
-			}
-			price := closesM15[len(closesM15)-1]
-			DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
-			DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
-			ma60M15 := CalculateMA(closesM15, 60)
-			ema25M15 := CalculateEMA(closesM15, 25)
-			// 错误注释：检查 ema25M15 长度，避免空数组访问
-			if len(ema25M15) == 0 {
-				fmt.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
-				continue
-			}
-			ema25M15now := ema25M15[len(ema25M15)-1]
-			if price > ema25M15now && price > ma60M15 && DIFUPM15 {
-				MACDM15 = "BUYMACD"
-			} else if price < ema25M15now && price < ma60M15 && DIFDOWNM15 {
-				MACDM15 = "SELLMACD"
-			}
-			XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
-			if XSTRONGUPM15 && price > ma60M15 {
-				MACDM15 = "XBUYMID"
-			}
-			XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
-			if XSTRONGDOWNM15 && price < ma60M15 {
-				MACDM15 = "XSELLMID"
-			}
-			// 获取 5 分钟 K 线数据
-			closesM5, err = GetClosesWithFallback(client, sym, "5m")
-			if err != nil || len(closesM5) == 0 {
-				// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-				fmt.Printf("获取 %s (5m) 数据失败: %v\n", sym, err)
-				continue
-			}
-			ma60M5 := CalculateMA(closesM5, 60)
-			XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
-			XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
-			if price > ma60M5 && XSTRONGUPM5 {
-				MACDM5 = "BUYMACD"
-			} else if price < ma60M5 && XSTRONGDOWNM5 {
-				MACDM5 = "SELLMACD"
-			}
-			// 获取 1 小时 K 线数据
-			closesH1, err = GetClosesWithFallback(client, sym, "1h")
-			if err != nil || len(closesH1) == 0 {
-				// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-				fmt.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
-				continue
-			}
-			ema25H1 := CalculateEMA(closesH1, 25)
-			if len(ema25H1) == 0 {
-				// 错误注释：检查 ema25H1 长度，避免空数组访问
-				fmt.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
-				continue
-			}
-			ema25H1Now := ema25H1[len(ema25H1)-1]
-			ma60H1 := CalculateMA(closesH1, 60)
-			DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
-			DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
-			if price > ema25H1Now && price > ma60H1 && DIFUPH1 {
-				MACDH1 = "BUYMACD"
-			} else if price < ema25H1Now && price < ma60H1 && DIFDOWNH1 {
-				MACDH1 = "SELLMACD"
-			}
+		var closesM15, closesM5, closesH1 []float64
+		var err error
+		// 获取 15 分钟 K 线数据
+		closesM15, err = GetClosesWithFallback(client, sym, "15m")
+		if err != nil || len(closesM15) == 0 {
+			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+			fmt.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		price := closesM15[len(closesM15)-1]
+		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
+		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
+		ma60M15 := CalculateMA(closesM15, 60)
+		ema25M15 := CalculateEMA(closesM15, 25)
+		// 错误注释：检查 ema25M15 长度，避免空数组访问
+		if len(ema25M15) == 0 {
+			fmt.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
+			continue
+		}
+		ema25M15now := ema25M15[len(ema25M15)-1]
+		if price > ema25M15now && price > ma60M15 && DIFUPM15 {
+			MACDM15 = "BUYMACD"
+		} else if price < ema25M15now && price < ma60M15 && DIFDOWNM15 {
+			MACDM15 = "SELLMACD"
+		}
+		XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
+		if XSTRONGUPM15 && price > ma60M15 {
+			MACDM15 = "XBUYMID"
+		}
+		XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
+		if XSTRONGDOWNM15 && price < ma60M15 {
+			MACDM15 = "XSELLMID"
+		}
+		// 获取 5 分钟 K 线数据
+		closesM5, err = GetClosesWithFallback(client, sym, "5m")
+		if err != nil || len(closesM5) == 0 {
+			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+			fmt.Printf("获取 %s (5m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		ma60M5 := CalculateMA(closesM5, 60)
+		XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
+		XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
+		if price > ma60M5 && XSTRONGUPM5 {
+			MACDM5 = "BUYMACD"
+		} else if price < ma60M5 && XSTRONGDOWNM5 {
+			MACDM5 = "SELLMACD"
+		}
+		// 获取 1 小时 K 线数据
+		closesH1, err = GetClosesWithFallback(client, sym, "1h")
+		if err != nil || len(closesH1) == 0 {
+			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+			fmt.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
+			continue
+		}
+		ema25H1 := CalculateEMA(closesH1, 25)
+		if len(ema25H1) == 0 {
+			// 错误注释：检查 ema25H1 长度，避免空数组访问
+			fmt.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
+			continue
+		}
+		ema25H1Now := ema25H1[len(ema25H1)-1]
+		ma60H1 := CalculateMA(closesH1, 60)
+		DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
+		DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
+		if price > ema25H1Now && price > ma60H1 && DIFUPH1 {
+			MACDH1 = "BUYMACD"
+		} else if price < ema25H1Now && price < ma60H1 && DIFDOWNH1 {
+			MACDH1 = "SELLMACD"
 		}
 
 		// 处理操作逻辑
@@ -257,7 +249,6 @@ func waitUntilNext5Min() time.Duration { // 每5分钟监控
 
 func WaitEnerge(
 	resultsChan chan []types.CoinIndicator,
-	db_trend *sql.DB,
 	wait_sucess_token, chatID string,
 	client *futures.Client,
 	klinesCount int,
@@ -269,7 +260,7 @@ func WaitEnerge(
 
 		// 执行首次检测
 		now := time.Now()
-		executeWaitCheck(db_trend, wait_sucess_token, chatID, client, waiting_token, now)
+		executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
 
 		// 等到下一个 5 分钟整点
 		time.Sleep(waitUntilNext5Min())
@@ -279,7 +270,7 @@ func WaitEnerge(
 		defer ticker.Stop()
 
 		for now := range ticker.C {
-			go executeWaitCheck(db_trend, wait_sucess_token, chatID, client, waiting_token, now)
+			go executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
 

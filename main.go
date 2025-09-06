@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"database/sql"
 	"encoding/json"
-	"energe/model"
 	"energe/telegram"
 	"energe/types"
 	"energe/utils"
@@ -57,7 +55,6 @@ var (
 		"PENDLEUSDT",
 	} // 想排除的币放这里
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
-	db_trend       *sql.DB
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
 )
@@ -82,17 +79,9 @@ func main() {
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
 
-	model.InitDBTrend()
-	db_trend = model.DBTrend
-
-	if db_trend == nil {
-		log.Fatal("db_trend 初始化失败，DBTrend 为空")
-	}
-
 	// 首次 runScan 成功后再启动等待区
 	go utils.WaitEnerge(
 		waitChan,
-		db_trend,
 		wait_energe_botToken,
 		chatID,
 		client,
@@ -174,16 +163,7 @@ func main() {
 }
 
 func runScan(client *futures.Client) error {
-
-	// ---------- 0. 优先分析 BTC, ETH ----------
-	coreSymbols := []string{"BTCUSDT", "ETHUSDT"}
 	var results []types.CoinIndicator
-	for _, sym := range coreSymbols {
-		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym}, db_trend)
-		if ok {
-			results = append(results, ind)
-		}
-	}
 
 	// ---------- 1. 构建合并候选 ----------
 	candidates, _ := utils.GetHotCoins(slipCoin)
@@ -204,7 +184,7 @@ func runScan(client *futures.Client) error {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			ind, ok := analyseSymbol(client, c, db_trend)
+			ind, ok := analyseSymbol(client, c)
 			if ok {
 				resMu.Lock()
 				results = append(results, ind)
@@ -250,7 +230,7 @@ func runScanLong(client *futures.Client) error {
 
 /* ====================== 单币分析 ====================== */
 
-func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) (types.CoinIndicator, bool) {
+func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 使用 defer 捕获可能的 panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -262,83 +242,63 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 	}()
 	symbol := c.Symbol
 	var inst string
-	if symbol == "BTCUSDT" || symbol == "ETHUSDT" {
-		inst = symbol
-		//MACDM5, _ := utils.GetTrendResult(db_trend, symbol, "5m")
-		MACDM15, _ := utils.GetTrendResult(db_trend, symbol, "15m")
-		MACDH1, _ := utils.GetTrendResult(db_trend, symbol, "1h")
-		//BuyMACDH4, _ := utils.GetTrendResult(db, symbol, "4h")
-		//BuyMACDD1, _ := utils.GetTrendResult(db, symbol, "1d")
-		//BuyMACDD3, _ := utils.GetTrendResult(db, symbol, "3d")
+	var MACDH1 string
+	var closesH1, closesM15 []float64
+	var err error
 
-		// ===== 模型1 ： Fomo模型  =====
-		if MACDH1 == "BUYMACD" && (MACDM15 == "BUYMACD" || MACDM15 == "XBUYMID") {
-			status := "Wait"
-			return types.CoinIndicator{
-				Symbol:    symbol,
-				Status:    status,
-				Operation: "BEBUY",
-				Inst:      inst,
-			}, true
-		}
+	closesH1, err = utils.GetClosesWithFallback(client, symbol, "1h")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
 
-		if MACDH1 == "SELLMACD" && (MACDM15 == "SELLMACD" || MACDM15 == "XSELLMID") {
-			status := "Wait"
-			return types.CoinIndicator{
-				Symbol:    symbol,
-				Status:    status,
-				Operation: "BESELL",
-				Inst:      inst,
-			}, true
-		}
+	price := closesH1[len(closesH1)-1]
+	ema25H1 := utils.CalculateEMA(closesH1, 25)
+	ema25H1Now := ema25H1[len(ema25H1)-1]
+	ma60H1 := utils.CalculateMA(closesH1, 60)
+	DIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
+	DIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
+	if price > ema25H1Now && price > ma60H1 && DIFUP {
+		MACDH1 = "BUYMACD"
+	} else if price < ema25H1Now && price < ma60H1 && DIFDOWN {
+		MACDH1 = "SELLMACD"
 	} else {
-		var MACDH1 string
-		var closesH1, closesM15 []float64
-		var err error
+		return types.CoinIndicator{}, false
+	}
+	closesM15, err = utils.GetClosesWithFallback(client, symbol, "15m")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
 
-		closesH1, err = utils.GetClosesWithFallback(client, symbol, "1h")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
+	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
+	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
+	ma60M15 := utils.CalculateMA(closesM15, 60)
+	ema25M15 := utils.CalculateEMA(closesM15, 25)
+	ema25M15now := ema25M15[len(ema25M15)-1]
+	XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5)
+	XSTRONGDOWNM15 := utils.XSTRONGDOWN(closesM15, 6, 13, 5)
+	if (price > ema25M15now && price > ma60M15 && DIFUPM15) || (XSTRONGUPM15 && price > ma60M15) {
+		if MACDH1 == "BUYMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BUY",
+				Inst:      inst,
+			}, true
 		}
-
-		price := closesH1[len(closesH1)-1]
-		ema25H1 := utils.CalculateEMA(closesH1, 25)
-		ema25H1Now := ema25H1[len(ema25H1)-1]
-		ma60H1 := utils.CalculateMA(closesH1, 60)
-		DIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
-		DIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
-
-		if price > ema25H1Now && price > ma60H1 && DIFUP {
-			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now && price < ma60H1 && DIFDOWN {
-			MACDH1 = "SELLMACD"
-		} else {
-			return types.CoinIndicator{}, false
+	} else if (price < ema25M15now && price < ma60M15 && DIFDOWNM15) || (XSTRONGDOWNM15 && price < ma60M15) {
+		if MACDH1 == "SELLMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "SELL",
+				Inst:      inst,
+			}, true
 		}
-		closesM15, err = utils.GetClosesWithFallback(client, symbol, "15m")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
-		}
-
-		DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
-		ma60M15 := utils.CalculateMA(closesM15, 60)
-		ema25M15 := utils.CalculateEMA(closesM15, 25)
-		ema25M15now := ema25M15[len(ema25M15)-1]
-		XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5)
-		if (price > ema25M15now && price > ma60M15 && DIFUPM15) || (XSTRONGUPM15 && price > ma60M15) {
-			if MACDH1 == "BUYMACD" {
-				status := "Wait"
-				return types.CoinIndicator{
-					Symbol:    symbol,
-					Status:    status,
-					Operation: "OTBUY",
-					Inst:      inst,
-				}, true
-			}
-		} else {
-			return types.CoinIndicator{}, false
-		}
+	} else {
+		return types.CoinIndicator{}, false
 	}
 
 	return types.CoinIndicator{}, false
