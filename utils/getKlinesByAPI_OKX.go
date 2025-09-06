@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -130,4 +131,21 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 	}
 
 	return nil, nil, nil, lastErr
+}
+
+func SymbolToInst(symbol string) (string, error) {
+	symbol = strings.ToUpper(symbol)
+
+	if strings.HasSuffix(symbol, "USDT") {
+		base := strings.TrimSuffix(symbol, "USDT")
+		return fmt.Sprintf("%s-USDT-SWAP", base), nil
+	}
+
+	if strings.HasSuffix(symbol, "USDC") {
+		base := strings.TrimSuffix(symbol, "USDC")
+		return fmt.Sprintf("%s-USDC-SWAP", base), nil
+	}
+
+	// 其他币对，可以按需扩展
+	return "", fmt.Errorf("OKX不支持的 symbol 格式: %s", symbol)
 }

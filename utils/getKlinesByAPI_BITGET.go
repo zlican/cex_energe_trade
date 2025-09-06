@@ -185,10 +185,18 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		if raw.Code != "00000" {
 			lastErr = fmt.Errorf("bitget api error: code=%s msg=%s", raw.Code, raw.Msg)
 			fmt.Printf("[Bitget][KLINES] attempt %d api returned error: %s %s\n", attempt, raw.Code, raw.Msg)
-			// 常见业务错误可不重试
+
+			// ===== 新增：判断交易对不存在，直接返回，不再重试 =====
+			if raw.Code == "40034" || strings.Contains(raw.Msg, "does not exist") {
+				return nil, nil, nil, lastErr
+			}
+
+			// 常见 4xx 业务错误（参数错误等）可不重试
 			if raw.Code != "" && strings.HasPrefix(raw.Code, "4") {
 				return nil, nil, nil, lastErr
 			}
+
+			// 其他错误继续重试
 			time.Sleep(backoff)
 			backoff *= 2
 			continue

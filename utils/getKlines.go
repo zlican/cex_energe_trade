@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/adshao/go-binance/v2/futures"
@@ -28,13 +29,18 @@ func GetKlinesByAPI(client *futures.Client, symbol, tf string, klinesCount int) 
 			Symbol(symbol).Interval(tf).
 			Limit(klinesCount).Do(ctx)
 
-		// 拉取成功且数量够用，直接跳出循环
 		if err == nil {
+			// 拉取成功
 			break
 		}
 
-		// 记录本次失败
-		log.Printf("第 %d 次拉取 %s K 线失败: %v", attempt, symbol, err)
+		errStr := err.Error()
+		if strings.Contains(errStr, "code=-1121") && strings.Contains(errStr, "Invalid symbol") {
+			break
+		}
+
+		// 其他错误，继续重试
+		log.Printf("第 %d 次拉取 %s K线失败: %v", attempt, symbol, err)
 
 		// 如果还没到最后一次，可以选择短暂等待再试（可按需调整或使用指数退避）
 		if attempt < maxRetries {

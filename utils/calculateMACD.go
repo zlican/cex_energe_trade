@@ -214,9 +214,8 @@ func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 
 	C := histogram[len(histogram)-3]
 	D := histogram[len(histogram)-2]
-	E := histogram[len(histogram)-1]
 
-	return E > 0 && E > D || E > 0 && D > 0 && D > C
+	return D > 0 && D > C
 }
 
 //为X
@@ -232,7 +231,6 @@ func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 	C := histogram[len(histogram)-3]
 	D := histogram[len(histogram)-2]
-	E := histogram[len(histogram)-1]
 
-	return E < 0 && E < D || E < 0 && D < 0 && D < C
+	return D < 0 && D < C
 }

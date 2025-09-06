@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"energe/model"
-	"energe/okx"
 	"energe/telegram"
 	"energe/types"
 	"energe/utils"
@@ -35,9 +34,6 @@ var (
 	proxyURL                  = "http://127.0.0.1:10809"
 	klinesCount               = 200
 	maxWorkers                = 20
-	limitVolume               = 500000000 //5亿 USDT
-	okxCache                  *okx.VolumeCache
-	okxLimit                  = 300000000.0                                      // 3 亿
 	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
 	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
 	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
@@ -46,10 +42,7 @@ var (
 	long_waiting_bot          = "8236814626:AAHFq7SmeJ16Lvr1e0c_eoJSTLfqDtSqFCA" //长线等待区
 	chatID                    = "6074996357"
 
-	// volumeMap      = map[string]float64{}
-	volumeCache *types.VolumeCache
-	err         error
-	slipCoin    = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "AGIXUSDT",
+	slipCoin = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "AGIXUSDT",
 		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
 		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
 		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "PNUTUSDT",
@@ -59,9 +52,10 @@ var (
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "OPUSDT",
 		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "BERAUSDT", "PEPEUSDT",
-		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT",
+		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT", "SHIBUSDT",
+		"PYTHUSDT", "BIOUSDT", "PIPPINUSDT", "OPUSDT", "IPUSDT", "PARTIUSDT", "SYRUPUSDT",
+		"PENDLEUSDT",
 	} // 想排除的币放这里
-	muVolumeMap    sync.Mutex
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	db_trend       *sql.DB
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
@@ -87,27 +81,6 @@ func main() {
 
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
-
-	// 创建并预热 VolumeCache
-	volumeCache, err = utils.NewVolumeCache(client, slipCoin, float64(limitVolume))
-	if err != nil {
-		log.Fatalf("VolumeCache 启动失败: %v", err)
-	}
-
-	<-volumeCache.Ready()
-	log.Println("volumeCache 启动成功")
-	defer volumeCache.Close()
-
-	okxCache, err = okx.NewVolumeCacheOKX(proxyURL, slipCoin, okxLimit)
-	if err != nil {
-		log.Fatalf("OKX VolumeCache 启动失败: %v", err)
-	}
-	<-okxCache.Ready()
-	log.Println("okxCache 启动成功")
-	defer okxCache.Close()
-
-	fmt.Println(okxCache.SymbolsAboveNotional(float64(okxLimit)))
-	fmt.Println(volumeCache.SymbolsAbove(float64(limitVolume)))
 
 	model.InitDBTrend()
 	db_trend = model.DBTrend
@@ -148,10 +121,8 @@ func main() {
 		nextAligned := now.Truncate(time.Minute).Add(time.Duration(minutesToNext) * time.Minute).Truncate(time.Minute)
 
 		delay := time.Until(nextAligned)
-		progressLogger.Printf("[runScan] 下一次对齐在 %s 执行（等待 %v）", nextAligned.Format("15:04:05"), delay)
 
 		time.AfterFunc(delay, func() {
-			progressLogger.Printf("[runScan] 对齐执行: %s", time.Now().Format("15:04:05"))
 			if err := runScan(client); err != nil {
 				progressLogger.Printf("对齐 runScan 出错: %v", err)
 			}
@@ -180,10 +151,7 @@ func main() {
 		nextAligned := now.Truncate(time.Hour).Add(time.Hour) // 下一整点
 		delay := time.Until(nextAligned)
 
-		progressLogger.Printf("[runScanLong] 下一次整点在 %s 执行（等待 %v）", nextAligned.Format("15:04:05"), delay)
-
 		time.AfterFunc(delay, func() {
-			progressLogger.Printf("[runScanLong] 整点执行: %s", time.Now().Format("15:04:05"))
 			if err := runScanLong(client); err != nil {
 				progressLogger.Printf("整点 runScan 出错: %v", err)
 			}
@@ -211,7 +179,7 @@ func runScan(client *futures.Client) error {
 	coreSymbols := []string{"BTCUSDT", "ETHUSDT"}
 	var results []types.CoinIndicator
 	for _, sym := range coreSymbols {
-		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym, Source: types.MarketBinance}, db_trend)
+		ind, ok := analyseSymbol(client, types.Candidate{Symbol: sym}, db_trend)
 		if ok {
 			results = append(results, ind)
 		}
@@ -219,8 +187,6 @@ func runScan(client *futures.Client) error {
 
 	// ---------- 1. 构建合并候选 ----------
 	candidates, _ := utils.GetHotCoins(slipCoin)
-
-	progressLogger.Printf("HOT候选数量: %d", len(candidates))
 
 	// ---------- 2. 并发分析 ----------
 	var (
@@ -255,7 +221,6 @@ func runScan(client *futures.Client) error {
 		progressLogger.Println("waitChan 被阻塞，跳过本次发送")
 	}
 
-	progressLogger.Printf("本轮符合条件标的数量: %d", len(results))
 	sort.Slice(results, func(i, j int) bool { return results[i].StochRSI > results[j].StochRSI })
 
 	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID)
@@ -267,7 +232,7 @@ func runScanLong(client *futures.Client) error {
 	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "ETHBTC", "PAXGUSDT", "HYPEUSDT"}
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
-		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym, Source: types.MarketBinance})
+		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym})
 		if ok {
 			resultsLong = append(resultsLong, ind)
 		}
@@ -313,7 +278,6 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BEBUY",
-				Source:    types.MarketBinance,
 				Inst:      inst,
 			}, true
 		}
@@ -324,7 +288,6 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BESELL",
-				Source:    types.MarketBinance,
 				Inst:      inst,
 			}, true
 		}
@@ -332,60 +295,44 @@ func analyseSymbol(client *futures.Client, c types.Candidate, db_trend *sql.DB) 
 	} else {
 		var MACDH1 string
 		var closesH1, closesM15 []float64
-		if c.Source == types.MarketBinance {
-			_, _, closesH1, err = utils.GetKlinesByAPI(client, symbol, "1h", 200)
-			if err != nil {
-				fmt.Println(err)
-			}
-		} else if c.Source == types.MarketOKX {
-			inst, _ = okxCache.RawSymbol(c.Symbol)
-			_, _, closesH1, err = utils.GetKlinesByAPI_OKX(inst, "1H", 200)
-			if err != nil {
-				fmt.Println(err)
-			}
-		} else if c.Source == types.MarketBitget {
-			_, _, closesH1, err = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "1h", 200)
-			if err != nil {
-				fmt.Println(err)
-			}
+		var err error
+
+		closesH1, err = utils.GetClosesWithFallback(client, symbol, "1h")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
 		}
 
 		price := closesH1[len(closesH1)-1]
 		ema25H1 := utils.CalculateEMA(closesH1, 25)
 		ema25H1Now := ema25H1[len(ema25H1)-1]
 		ma60H1 := utils.CalculateMA(closesH1, 60)
-		DEAUP := utils.IsDEAUP(closesH1, 6, 13, 5)
-		DEADOWN := utils.IsDEADOWN(closesH1, 6, 13, 5)
+		DIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
+		DIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
-		if price > ema25H1Now && price > ma60H1 && DEAUP {
+		if price > ema25H1Now && price > ma60H1 && DIFUP {
 			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now && price < ma60H1 && DEADOWN {
+		} else if price < ema25H1Now && price < ma60H1 && DIFDOWN {
 			MACDH1 = "SELLMACD"
 		} else {
 			return types.CoinIndicator{}, false
 		}
-		if c.Source == types.MarketBinance {
-			_, _, closesM15, _ = utils.GetKlinesByAPI(client, symbol, "15m", 200)
-		} else if c.Source == types.MarketOKX {
-			inst, _ = okxCache.RawSymbol(c.Symbol)
-			_, _, closesM15, _ = utils.GetKlinesByAPI_OKX(inst, "15m", 200)
-		} else if c.Source == types.MarketBitget {
-			_, _, closesM15, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "15m", 200)
+		closesM15, err = utils.GetClosesWithFallback(client, symbol, "15m")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
 		}
 
-		DEAUPM15 := utils.IsDEAUP(closesM15, 6, 13, 5)
+		DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
 		ma60M15 := utils.CalculateMA(closesM15, 60)
 		ema25M15 := utils.CalculateEMA(closesM15, 25)
 		ema25M15now := ema25M15[len(ema25M15)-1]
 		XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5)
-		if (price > ema25M15now && price > ma60M15 && DEAUPM15) || (XSTRONGUPM15 && price > ma60M15) {
+		if (price > ema25M15now && price > ma60M15 && DIFUPM15) || (XSTRONGUPM15 && price > ma60M15) {
 			if MACDH1 == "BUYMACD" {
 				status := "Wait"
 				return types.CoinIndicator{
 					Symbol:    symbol,
 					Status:    status,
 					Operation: "OTBUY",
-					Source:    c.Source,
 					Inst:      inst,
 				}, true
 			}
@@ -414,40 +361,33 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 
 	var MACDD3 string
 	var closesD3, closesD1 []float64
-	if c.Source == types.MarketBinance {
-		_, _, closesD3, _ = utils.GetKlinesByAPI(client, symbol, "3d", 200)
-	} else if c.Source == types.MarketOKX {
-		inst, _ = okxCache.RawSymbol(c.Symbol)
-		_, _, closesD3, _ = utils.GetKlinesByAPI_OKX(inst, "3d", 200)
-	} else if c.Source == types.MarketBitget {
-		_, _, closesD3, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "3d", 200)
+	var err error
+	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
 	}
 
 	price := closesD3[len(closesD3)-1]
 	EMA25D3 := utils.CalculateEMA(closesD3, 25)
 	EMA25D3NOW := EMA25D3[len(EMA25D3)-1]
 	ma60D3 := utils.CalculateMA(closesD3, 60)
-	DEAUP := utils.IsDEAUP(closesD3, 6, 13, 5)
-	DEADOWN := utils.IsDEADOWN(closesD3, 6, 13, 5)
+	DIFUP := utils.IsDIFUP(closesD3, 6, 13, 5)
+	DIFDOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
-	if price > EMA25D3NOW && price > ma60D3 && DEAUP {
+	if price > EMA25D3NOW && price > ma60D3 && DIFUP {
 		MACDD3 = "BUYMACD"
-	} else if price < EMA25D3NOW && price < ma60D3 && DEADOWN {
+	} else if price < EMA25D3NOW && price < ma60D3 && DIFDOWN {
 		MACDD3 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
 	}
-	if c.Source == types.MarketBinance {
-		_, _, closesD1, _ = utils.GetKlinesByAPI(client, symbol, "1d", 200)
-	} else if c.Source == types.MarketOKX {
-		inst, _ = okxCache.RawSymbol(c.Symbol)
-		_, _, closesD1, _ = utils.GetKlinesByAPI_OKX(inst, "1d", 200)
-	} else if c.Source == types.MarketBitget {
-		_, _, closesD1, _ = utils.GetKlinesByAPI_Bitget(symbol, "umcbl", "1d", 200)
+	closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
 	}
 
-	DEAUPD1 := utils.IsDEAUP(closesD1, 6, 13, 5)
-	DEADOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+	DIFUPD1 := utils.IsDIFUP(closesD1, 6, 13, 5)
+	DIFDOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 	ma60D1 := utils.CalculateMA(closesD1, 60)
 	ema25D1 := utils.CalculateEMA(closesD1, 25)
 	ema25D1now := ema25D1[len(ema25D1)-1]
@@ -455,25 +395,23 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	XSTRONGUPD1 := utils.XSTRONGUP(closesD1, 6, 13, 5)
 	XSTRONGDOWND1 := utils.XSTRONGDOWN(closesD1, 6, 13, 5)
 
-	if (price > ema25D1now && price > ma60D1 && DEAUPD1) || (XSTRONGUPD1 && price > ma60D1) {
+	if (price > ema25D1now && price > ma60D1 && DIFUPD1) || (XSTRONGUPD1 && price > ma60D1) {
 		if MACDD3 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "BUYLong",
-				Source:    c.Source,
 				Inst:      inst,
 			}, true
 		}
-	} else if (price < ema25D1now && price < ma60D1 && DEADOWND1) || (XSTRONGDOWND1 && price < ma60D1) {
+	} else if (price < ema25D1now && price < ma60D1 && DIFDOWND1) || (XSTRONGDOWND1 && price < ma60D1) {
 		if MACDD3 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
 				Status:    status,
 				Operation: "SELLLong",
-				Source:    c.Source,
 				Inst:      inst,
 			}, true
 		}

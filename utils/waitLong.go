@@ -4,7 +4,6 @@ import (
 	"energe/telegram"
 	"energe/types"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +16,6 @@ type waitTokenL struct {
 	Inst                string
 	Operation           string
 	Status              string
-	Source              types.MarketSource
 	AddedAt             time.Time
 	LastPushedOperation string // 新增字段：记录最后一次推送的操作
 	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
@@ -52,7 +50,6 @@ func sendWaitListBroadcastL(now time.Time, waiting_token, chatID string) {
 		msgBuilder.WriteString(fmt.Sprintf("%s %-36s\n", emoje, token.Symbol))
 	}
 	msg := msgBuilder.String()
-	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitListL))
 	telegram.SendMessageWaitingL(waiting_token, chatID, msg)
 }
 
@@ -81,20 +78,20 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		var MACDH4, MACDD1, MACDD3 string
 
 		var closesD3, closesD1, closesH4 []float64
-		if token.Source == types.MarketBinance {
-			_, _, closesD1, _ = GetKlinesByAPI(client, sym, "1d", 200)
-		} else if token.Source == types.MarketOKX {
-			_, _, closesD1, _ = GetKlinesByAPI_OKX(token.Inst, "1d", 200)
+		var err error
+		closesD1, err = GetClosesWithFallback(client, sym, "1d")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
 		}
 		price := closesD1[len(closesD1)-1]
-		DEAUP := IsDEAUP(closesD1, 6, 13, 5)
-		DEADOWN := IsDEADOWN(closesD1, 6, 13, 5)
+		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
+		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
 		ma60D1 := CalculateMA(closesD1, 60)
 		ema25D1 := CalculateEMA(closesD1, 25)
 		ema25D1now := ema25D1[len(ema25D1)-1]
-		if price > ema25D1now && price > ma60D1 && DEAUP {
+		if price > ema25D1now && price > ma60D1 && DIFUP {
 			MACDD1 = "BUYMACD"
-		} else if price < ema25D1now && price < ma60D1 && DEADOWN {
+		} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
 			MACDD1 = "SELLMACD"
 		}
 		XSTRONGUPD1 := XSTRONGUP(closesD1, 6, 13, 5)
@@ -105,10 +102,9 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		if XSTRONGDOWND1 && price < ma60D1 {
 			MACDD1 = "XSELLMID"
 		}
-		if token.Source == types.MarketBinance {
-			_, _, closesH4, _ = GetKlinesByAPI(client, sym, "4h", 200)
-		} else if token.Source == types.MarketOKX {
-			_, _, closesH4, _ = GetKlinesByAPI_OKX(token.Inst, "4h", 200)
+		closesH4, err = GetClosesWithFallback(client, sym, "4h")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
 		}
 		ma60H4 := CalculateMA(closesH4, 60)
 		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
@@ -119,20 +115,19 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			MACDH4 = "SELLMACD"
 		}
 		//1小时大时
-		if token.Source == types.MarketBinance {
-			_, _, closesD3, _ = GetKlinesByAPI(client, sym, "3d", 200)
-		} else if token.Source == types.MarketOKX {
-			_, _, closesD3, _ = GetKlinesByAPI_OKX(token.Inst, "3d", 200)
+		closesD3, err = GetClosesWithFallback(client, sym, "3d")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
 		}
 		ema25D3 := CalculateEMA(closesD3, 25)
 		ema25D3Now := ema25D3[len(ema25D3)-1]
 		ma60D3 := CalculateMA(closesD3, 60)
-		DEAUPD3 := IsDEAUP(closesD3, 6, 13, 5)
-		DEADOWND3 := IsDEADOWN(closesD3, 6, 13, 5)
+		DIFUPD3 := IsDIFUP(closesD3, 6, 13, 5)
+		DIFDOWND3 := IsDIFDOWN(closesD3, 6, 13, 5)
 
-		if DEAUPD3 && price > ema25D3Now && price > ma60D3 {
+		if DIFUPD3 && price > ema25D3Now && price > ma60D3 {
 			MACDD3 = "BUYMACD"
-		} else if DEADOWND3 && price < ema25D3Now && price < ma60D3 {
+		} else if DIFDOWND3 && price < ema25D3Now && price < ma60D3 {
 			MACDD3 = "SELLMACD"
 		}
 
@@ -292,7 +287,6 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 				Inst:      coin.Inst,
 				Operation: coin.Operation,
 				Status:    coin.Status,
-				Source:    coin.Source,
 				AddedAt:   now,
 			}
 			newAdded = true
@@ -303,7 +297,6 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 				Inst:      coin.Inst,
 				Operation: coin.Operation,
 				Status:    coin.Status,
-				Source:    coin.Source,
 				AddedAt:   now,
 			}
 			newAdded = true

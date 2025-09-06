@@ -108,8 +108,6 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 		for _, sc := range slipCoin {
 			// 去掉 USDT 或 USDC 后缀，提取纯币种名称
 			coin := strings.TrimSuffix(strings.TrimSuffix(sc, "USDT"), "USDC")
-			// 去掉可能的 "1000" 前缀（如 1000PEPE、1000BONK）
-			coin = strings.TrimPrefix(coin, "1000")
 			slipSet[strings.ToUpper(coin)] = struct{}{}
 		}
 
@@ -137,7 +135,6 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 			rawSymbol := normalizedSymbol + "_UMCBL"
 
 			candidates = append(candidates, types.Candidate{
-				Source:    types.MarketBitget,
 				Symbol:    normalizedSymbol,
 				RawSymbol: rawSymbol,
 				Volume24h: 0.0, // 暂时设为 0，需额外接口获取

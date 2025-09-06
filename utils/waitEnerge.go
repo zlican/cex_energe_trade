@@ -5,7 +5,6 @@ import (
 	"energe/telegram"
 	"energe/types"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +17,6 @@ type waitToken struct {
 	Inst                string
 	Operation           string
 	Status              string
-	Source              types.MarketSource
 	AddedAt             time.Time
 	LastPushedOperation string // 新增字段：记录最后一次推送的操作
 	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
@@ -53,7 +51,6 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 		msgBuilder.WriteString(fmt.Sprintf("%s %-36s\n", emoje, token.Symbol))
 	}
 	msg := msgBuilder.String()
-	log.Printf("📤 推送等待区更新列表，共 %d 个代币", len(waitList))
 	telegram.SendMessageWaiting(waiting_token, chatID, msg)
 }
 
@@ -90,23 +87,20 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 			//BuyMACDD3, _ := GetTrendResult(db, symbol, "3d")
 		} else {
 			var closesM15, closesM5, closesH1 []float64
-			//15分钟中时
-			if token.Source == types.MarketBinance {
-				_, _, closesM15, _ = GetKlinesByAPI(client, sym, "15m", 200)
-			} else if token.Source == types.MarketOKX {
-				_, _, closesM15, _ = GetKlinesByAPI_OKX(token.Inst, "15m", 200)
-			} else if token.Source == types.MarketBitget {
-				_, _, closesM15, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "15m", 200)
+			var err error
+			closesM15, err = GetClosesWithFallback(client, sym, "15m")
+			if err != nil {
+				fmt.Println("获取数据失败:", err)
 			}
 			price := closesM15[len(closesM15)-1]
-			DEAUPM15 := IsDEAUP(closesM15, 6, 13, 5)
-			DEADOWNM15 := IsDEADOWN(closesM15, 6, 13, 5)
+			DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
+			DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 			ma60M15 := CalculateMA(closesM15, 60)
 			ema25M15 := CalculateEMA(closesM15, 25)
 			ema25M15now := ema25M15[len(ema25M15)-1]
-			if price > ema25M15now && price > ma60M15 && DEAUPM15 {
+			if price > ema25M15now && price > ma60M15 && DIFUPM15 {
 				MACDM15 = "BUYMACD"
-			} else if price < ema25M15now && price < ma60M15 && DEADOWNM15 {
+			} else if price < ema25M15now && price < ma60M15 && DIFDOWNM15 {
 				MACDM15 = "SELLMACD"
 			}
 			XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
@@ -118,12 +112,9 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				MACDM15 = "XSELLMID"
 			}
 			//5分钟小时
-			if token.Source == types.MarketBinance {
-				_, _, closesM5, _ = GetKlinesByAPI(client, sym, "5m", 200)
-			} else if token.Source == types.MarketOKX {
-				_, _, closesM5, _ = GetKlinesByAPI_OKX(token.Inst, "5m", 200)
-			} else if token.Source == types.MarketBitget {
-				_, _, closesM5, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "5m", 200)
+			closesM5, err = GetClosesWithFallback(client, sym, "5m")
+			if err != nil {
+				fmt.Println("获取数据失败:", err)
 			}
 			ma60M5 := CalculateMA(closesM5, 60)
 			XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
@@ -134,21 +125,18 @@ func executeWaitCheck(db_trend *sql.DB, wait_sucess_token, chatID string, client
 				MACDM5 = "SELLMACD"
 			}
 			//1小时大时
-			if token.Source == types.MarketBinance {
-				_, _, closesH1, _ = GetKlinesByAPI(client, sym, "1h", 200)
-			} else if token.Source == types.MarketOKX {
-				_, _, closesH1, _ = GetKlinesByAPI_OKX(token.Inst, "1h", 200)
-			} else if token.Source == types.MarketBitget {
-				_, _, closesH1, _ = GetKlinesByAPI_Bitget(sym, "umcbl", "1h", 200)
+			closesH1, err = GetClosesWithFallback(client, sym, "1h")
+			if err != nil {
+				fmt.Println("获取数据失败:", err)
 			}
 			ema25H1 := CalculateEMA(closesH1, 25)
 			ema25H1Now := ema25H1[len(ema25H1)-1]
 			ma60H1 := CalculateMA(closesH1, 60)
-			DEAUPH1 := IsDEAUP(closesH1, 6, 13, 5)
-			DEADOWNH1 := IsDEADOWN(closesH1, 6, 13, 5)
-			if price > ema25H1Now && price > ma60H1 && DEAUPH1 {
+			DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
+			DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
+			if price > ema25H1Now && price > ma60H1 && DIFUPH1 {
 				MACDH1 = "BUYMACD"
-			} else if price < ema25H1Now && price < ma60H1 && DEADOWNH1 {
+			} else if price < ema25H1Now && price < ma60H1 && DIFDOWNH1 {
 				MACDH1 = "SELLMACD"
 			}
 		}
@@ -468,7 +456,6 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 				Inst:      coin.Inst,
 				Operation: coin.Operation,
 				Status:    coin.Status,
-				Source:    coin.Source,
 				AddedAt:   now,
 			}
 			newAdded = true
@@ -479,7 +466,6 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 				Inst:      coin.Inst,
 				Operation: coin.Operation,
 				Status:    coin.Status,
-				Source:    coin.Source,
 				AddedAt:   now,
 			}
 			newAdded = true
