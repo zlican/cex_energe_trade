@@ -76,6 +76,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 
 	for sym, token := range waitCopy {
 		var MACDH4, MACDD1, MACDD3 string
+		var mid string
 
 		var closesD3, closesD1, closesH4 []float64
 		var err error
@@ -84,6 +85,8 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			progressLogger.Println("获取数据失败:", err)
 		}
 		price := closesD1[len(closesD1)-1]
+		pricePre := closesD1[len(closesD1)-2]
+		pricePre2 := closesD1[len(closesD1)-3]
 		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
 		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
 		ma60D1 := CalculateMA(closesD1, 60)
@@ -96,13 +99,22 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			MACDD1 = "SELLMACD"
 		}
 		XSTRONGUPD1 := XSTRONGUP(closesD1, 6, 13, 5)
-		if XSTRONGUPD1 && price > ma60D1 {
-			MACDD1 = "XBUYMID"
+		if XSTRONGUPD1 && price > ma60D1 && DIFUP {
+			MACDD1 = "XBUY"
 		}
 		XSTRONGDOWND1 := XSTRONGDOWN(closesD1, 6, 13, 5)
-		if XSTRONGDOWND1 && price < ma60D1 {
-			MACDD1 = "XSELLMID"
+		if XSTRONGDOWND1 && price < ma60D1 && DIFDOWN {
+			MACDD1 = "XSELL"
 		}
+
+		//趋势结束标志
+		mid = "RANGE"
+		if pricePre > ema25D1now || pricePre2 > ema25D1now {
+			mid = "UP"
+		} else if pricePre < ema25D1now || pricePre2 < ema25D1now {
+			mid = "DOWN"
+		}
+
 		closesH4, err = GetClosesWithFallback(client, sym, "4h")
 		if err != nil {
 			progressLogger.Println("获取数据失败:", err)
@@ -110,10 +122,12 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		ma60H4 := CalculateMA(closesH4, 60)
 		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
 		XSTRONGDOWNH4 := XSTRONGDOWN(closesH4, 6, 13, 5)
-		if price > ma60H4 && XSTRONGUPH4 {
-			MACDH4 = "BUYMACD"
-		} else if price < ma60H4 && XSTRONGDOWNH4 {
-			MACDH4 = "SELLMACD"
+		DIFUPH4 := IsDIFUP(closesH4, 6, 13, 5)
+		DIFDOWNH4 := IsDIFDOWN(closesH4, 6, 13, 5)
+		if price > ma60H4 && XSTRONGUPH4 && DIFUPH4 {
+			MACDH4 = "XBUY"
+		} else if price < ma60H4 && XSTRONGDOWNH4 && DIFDOWNH4 {
+			MACDH4 = "XSELL"
 		}
 		//1小时大时
 		closesD3, err = GetClosesWithFallback(client, sym, "3d")
@@ -134,7 +148,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 
 		switch token.Operation {
 		case "BUYLong":
-			if MACDD3 == "BUYMACD" && ((MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD") || MACDD1 == "XBUYMID") {
+			if MACDD3 == "BUYMACD" && ((MACDD1 == "BUYMACD" && MACDH4 == "XBUY") || MACDD1 == "XBUY") {
 				if token.LastPushedOperation != "BUYLong" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
@@ -145,7 +159,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if MACDD1 != "BUYMACD" && MACDD1 != "XBUYMID" {
+			} else if mid != "UP" {
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]
@@ -171,7 +185,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 			}
 		case "SELLLong":
-			if MACDD3 == "SELLMACD" && ((MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD") || MACDD1 == "XSELLMID") {
+			if MACDD3 == "SELLMACD" && ((MACDD1 == "SELLMACD" && MACDH4 == "XSELL") || MACDD1 == "XSELL") {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "SELLLong" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
@@ -184,7 +198,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
-			} else if MACDD1 != "SELLMACD" && MACDD1 != "XSELLMID" {
+			} else if mid != "DOWN" {
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]

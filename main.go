@@ -257,11 +257,12 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var closesH1, closesM15 []float64
 	var err error
 
+	//大时
 	closesH1, err = utils.GetClosesWithFallback(client, symbol, "1h")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
-
+	//大时趋势环境
 	price := closesH1[len(closesH1)-1]
 	ema25H1 := utils.CalculateEMA(closesH1, 25)
 	ema25H1Now := ema25H1[len(ema25H1)-1]
@@ -276,15 +277,20 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	} else {
 		return types.CoinIndicator{}, false
 	}
+
+	//中时
 	closesM15, err = utils.GetClosesWithFallback(client, symbol, "15m")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
 
-	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
-	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
-	ma60M15 := utils.CalculateMA(closesM15, 60)
-	if price > ma60M15 && DIFUPM15 {
+	//中时未有效跌破
+	pricePre := closesM15[len(closesM15)-2]
+	pricePre2 := closesM15[len(closesM15)-3]
+	EMA25M15 := utils.CalculateEMA(closesM15, 25)
+	EMA25M15NOW := EMA25M15[len(EMA25M15)-1]
+
+	if pricePre > EMA25M15NOW || pricePre2 > EMA25M15NOW {
 		if MACDH1 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -294,7 +300,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 				Inst:      inst,
 			}, true
 		}
-	} else if price < ma60M15 && DIFDOWNM15 {
+	} else if pricePre < EMA25M15NOW || pricePre2 < EMA25M15NOW {
 		if MACDH1 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -353,11 +359,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 		fmt.Println("获取数据失败:", err)
 	}
 
-	DIFUPD1 := utils.IsDIFUP(closesD1, 6, 13, 5)
-	DIFDOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
-	ma60D1 := utils.CalculateMA(closesD1, 60)
+	//中时未有效跌破
+	pricePre := closesD1[len(closesD1)-2]
+	pricePre2 := closesD1[len(closesD1)-3]
+	EMA25D1 := utils.CalculateEMA(closesD1, 25)
+	EMA25D1NOW := EMA25D1[len(EMA25D1)-1]
 
-	if price > ma60D1 && DIFUPD1 {
+	if pricePre > EMA25D1NOW || pricePre2 > EMA25D1NOW {
 		if MACDD3 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -367,7 +375,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if price < ma60D1 && DIFDOWND1 {
+	} else if pricePre < EMA25D1NOW || pricePre2 < EMA25D1NOW {
 		if MACDD3 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{

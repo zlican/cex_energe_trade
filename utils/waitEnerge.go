@@ -162,6 +162,8 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			continue
 		}
 		price := closesM15[len(closesM15)-1]
+		pricePre := closesM15[len(closesM15)-2]
+		pricePre2 := closesM15[len(closesM15)-3]
 		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
 		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 		ma60M15 := CalculateMA(closesM15, 60)
@@ -189,9 +191,9 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 
 		//趋势结束标志
 		mid = "RANGE"
-		if price > ma60M15 && DIFUPM15 {
+		if pricePre > ema25M15now || pricePre2 > ema25M15now {
 			mid = "UP"
-		} else if price < ma60M15 && DIFDOWNM15 {
+		} else if pricePre < ema25M15now || pricePre2 < ema25M15now {
 			mid = "DOWN"
 		}
 

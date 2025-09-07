@@ -76,6 +76,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		"1h":  "1H",
 		"4h":  "4H",
 		"1d":  "1D",
+		"3d":  "3D",
 	}
 	granularity, ok := periodMap[tf]
 	if !ok {
