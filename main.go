@@ -45,15 +45,26 @@ var (
 		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
 		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "PNUTUSDT",
 		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT", "TIAUSDT", "ETHFIUSDT",
-		"WLDUSDT", "FILUSDT", "TAOUSDT", "CRVUSDT", "FETUSDT", "INJUSDT", "1000BONKUSDC",
+		"FILUSDT", "TAOUSDT", "CRVUSDT", "FETUSDT", "INJUSDT", "1000BONKUSDC",
 		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
 		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
 		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "OPUSDT",
 		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "BERAUSDT", "PEPEUSDT",
 		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT", "SHIBUSDT",
 		"PYTHUSDT", "BIOUSDT", "PIPPINUSDT", "OPUSDT", "IPUSDT", "PARTIUSDT", "SYRUPUSDT",
-		"PENDLEUSDT",
+		"PENDLEUSDT", "TRUMPOFFICIALUSDT",
 	} // 想排除的币放这里
+	slipCoinHARD = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT",
+		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
+		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
+		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT",
+		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT",
+		"FILUSDT", "INJUSDT", "1000BONKUSDC",
+		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT",
+		"APTUSDT", "DOGEUSDC", "VIRTUALUSDT",
+		"VINEUSDT", "MEMEUSDT", "PEPEUSDT",
+		"ATOMUSDT", "BONKUSDT", "SHIBUSDT",
+	}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
@@ -166,7 +177,7 @@ func runScan(client *futures.Client) error {
 	var results []types.CoinIndicator
 
 	// ---------- 1. 构建合并候选 ----------
-	candidates, _ := utils.GetHotCoins(slipCoin)
+	candidates, _ := utils.GetHotCoins(slipCoinHARD)
 
 	// ---------- 2. 并发分析 ----------
 	var (
@@ -273,11 +284,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
 	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 	ma60M15 := utils.CalculateMA(closesM15, 60)
-	ema25M15 := utils.CalculateEMA(closesM15, 25)
-	ema25M15now := ema25M15[len(ema25M15)-1]
-	XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5)
-	XSTRONGDOWNM15 := utils.XSTRONGDOWN(closesM15, 6, 13, 5)
-	if (price > ema25M15now && price > ma60M15 && DIFUPM15) || (XSTRONGUPM15 && price > ma60M15) {
+	if price > ma60M15 && DIFUPM15 {
 		if MACDH1 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -287,7 +294,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 				Inst:      inst,
 			}, true
 		}
-	} else if (price < ema25M15now && price < ma60M15 && DIFDOWNM15) || (XSTRONGDOWNM15 && price < ma60M15) {
+	} else if price < ma60M15 && DIFDOWNM15 {
 		if MACDH1 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -349,13 +356,8 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	DIFUPD1 := utils.IsDIFUP(closesD1, 6, 13, 5)
 	DIFDOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 	ma60D1 := utils.CalculateMA(closesD1, 60)
-	ema25D1 := utils.CalculateEMA(closesD1, 25)
-	ema25D1now := ema25D1[len(ema25D1)-1]
 
-	XSTRONGUPD1 := utils.XSTRONGUP(closesD1, 6, 13, 5)
-	XSTRONGDOWND1 := utils.XSTRONGDOWN(closesD1, 6, 13, 5)
-
-	if (price > ema25D1now && price > ma60D1 && DIFUPD1) || (XSTRONGUPD1 && price > ma60D1) {
+	if price > ma60D1 && DIFUPD1 {
 		if MACDD3 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -365,7 +367,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if (price < ema25D1now && price < ma60D1 && DIFDOWND1) || (XSTRONGDOWND1 && price < ma60D1) {
+	} else if price < ma60D1 && DIFDOWND1 {
 		if MACDD3 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{

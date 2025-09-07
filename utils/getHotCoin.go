@@ -130,8 +130,8 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 		candidates := make([]types.Candidate, 0, len(filteredSymbols)+2) // +2 for BTCUSDT and ETHUSDT
 		symbolSet := make(map[string]struct{})                           // To track symbols and avoid duplicates
 		for _, sym := range filteredSymbols {
-			// 规范化符号：添加 USDT 后缀
-			normalizedSymbol := sym + "USDT"
+			// 移除符号中的 "OFFICIAL"（不区分大小写）
+			normalizedSymbol := strings.ReplaceAll(strings.ToUpper(sym), "OFFICIAL", "") + "USDT"
 			// Bitget 原始符号：添加 _UMCBL 后缀
 			rawSymbol := normalizedSymbol + "_UMCBL"
 

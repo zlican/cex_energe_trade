@@ -4,6 +4,8 @@ import (
 	"energe/telegram"
 	"energe/types"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -23,11 +25,10 @@ type waitToken struct {
 
 var waitMu sync.Mutex
 var waitList = make(map[string]waitToken)
+var progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 
 // sendWaitListBroadcast 用于主动推送等待区列表
 func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
-	waitMu.Lock()
-	defer waitMu.Unlock()
 
 	if len(waitList) == 0 {
 		// 错误注释：如果 Telegram 发送失败，依赖其内置指数退避重试机制
@@ -55,18 +56,20 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 
 // handleOperation 处理单一操作（BEBUY/BESELL/OTBUY/OTSELL）的通用逻辑
 // 返回值：bool 表示是否从 waitList 删除该代币
-func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID string) bool {
+func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID string) bool {
 	isBuy := token.Operation == "BUY"
 	emoji := "🟢"
 	validMACD15 := "BUYMACD"
-	validXMid := "XBUYMID"
+	validX := "XBUY"
+	validMid := "UP"
 	if !isBuy {
 		emoji = "🔴"
 		validMACD15 = "SELLMACD"
-		validXMid = "XSELLMID"
+		validX = "XSELL"
+		validMid = "DOWN"
 	}
 	// 条件 1：信号有效，发送交易信号
-	if MACDH1 == validMACD15 && ((MACDM15 == validMACD15 && MACDM5 == validMACD15) || MACDM15 == validXMid) {
+	if MACDH1 == validMACD15 && ((MACDM15 == validMACD15 && MACDM5 == validX) || MACDM15 == validX) {
 		if token.LastPushedOperation != token.Operation {
 			var action string
 			if isBuy {
@@ -77,7 +80,7 @@ func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_
 			msg := fmt.Sprintf("%s%s：%s%s", emoji, action, emoji, sym)
 			// 错误注释：如果 Telegram 发送失败，依赖其内置指数退避重试机制，失败后跳过状态更新
 			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
-				fmt.Printf("发送 Telegram 消息失败 (%s): %v\n", sym, err)
+				progressLogger.Printf("发送 Telegram 消息失败 (%s): %v\n", sym, err)
 				return false
 			}
 			t := waitList[sym]
@@ -89,13 +92,13 @@ func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_
 	}
 
 	// 条件 2：15分钟信号失效，从 waitList 删除
-	if MACDM15 != validMACD15 && MACDM15 != validXMid {
+	if mid != validMid {
 		t := waitList[sym]
 		if t.LastPushedOperation == token.Operation && !t.LastInvalidPushed {
 			msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 			// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制，失败后仍删除代币以避免重复处理
 			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
-				fmt.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
+				progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
 			} else {
 				t.LastInvalidPushed = true
 				waitList[sym] = t
@@ -111,7 +114,7 @@ func handleOperation(sym string, token waitToken, MACDM5, MACDM15, MACDH1, wait_
 		msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 		// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制，失败后仍更新状态以避免重复发送
 		if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
-			fmt.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
+			progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
 		}
 		t.LastInvalidPushed = true
 	}
@@ -125,7 +128,7 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 	defer func() {
 		if r := recover(); r != nil {
 			// 错误注释：捕获 panic，避免程序崩溃，但需记录详细日志以便调试
-			fmt.Printf("[executeWaitCheck] Panic recovered: %v\n", r)
+			progressLogger.Printf("[executeWaitCheck] Panic recovered: %v\n", r)
 		}
 	}()
 
@@ -147,6 +150,7 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 
 	for sym, token := range waitCopy {
 		var MACDM5, MACDM15, MACDH1 string
+		var mid string
 
 		var closesM15, closesM5, closesH1 []float64
 		var err error
@@ -154,7 +158,7 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		closesM15, err = GetClosesWithFallback(client, sym, "15m")
 		if err != nil || len(closesM15) == 0 {
 			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-			fmt.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
+			progressLogger.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
 			continue
 		}
 		price := closesM15[len(closesM15)-1]
@@ -164,49 +168,61 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		ema25M15 := CalculateEMA(closesM15, 25)
 		// 错误注释：检查 ema25M15 长度，避免空数组访问
 		if len(ema25M15) == 0 {
-			fmt.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
+			progressLogger.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
 			continue
 		}
 		ema25M15now := ema25M15[len(ema25M15)-1]
+		MACDM15 = "RANGE"
 		if price > ema25M15now && price > ma60M15 && DIFUPM15 {
 			MACDM15 = "BUYMACD"
 		} else if price < ema25M15now && price < ma60M15 && DIFDOWNM15 {
 			MACDM15 = "SELLMACD"
 		}
 		XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
-		if XSTRONGUPM15 && price > ma60M15 {
-			MACDM15 = "XBUYMID"
+		if XSTRONGUPM15 && price > ma60M15 && DIFUPM15 {
+			MACDM15 = "XBUY"
 		}
 		XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
-		if XSTRONGDOWNM15 && price < ma60M15 {
-			MACDM15 = "XSELLMID"
+		if XSTRONGDOWNM15 && price < ma60M15 && DIFDOWNM15 {
+			MACDM15 = "XSELL"
 		}
+
+		//趋势结束标志
+		mid = "RANGE"
+		if price > ma60M15 && DIFUPM15 {
+			mid = "UP"
+		} else if price < ma60M15 && DIFDOWNM15 {
+			mid = "DOWN"
+		}
+
 		// 获取 5 分钟 K 线数据
 		closesM5, err = GetClosesWithFallback(client, sym, "5m")
 		if err != nil || len(closesM5) == 0 {
 			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-			fmt.Printf("获取 %s (5m) 数据失败: %v\n", sym, err)
+			progressLogger.Printf("获取 %s (5m) 数据失败: %v\n", sym, err)
 			continue
 		}
 		ma60M5 := CalculateMA(closesM5, 60)
 		XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
 		XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
-		if price > ma60M5 && XSTRONGUPM5 {
-			MACDM5 = "BUYMACD"
-		} else if price < ma60M5 && XSTRONGDOWNM5 {
-			MACDM5 = "SELLMACD"
+		DIFUPM5 := IsDIFUP(closesM5, 6, 13, 5)
+		DIFDOWNM5 := IsDIFDOWN(closesM5, 6, 13, 5)
+		if price > ma60M5 && XSTRONGUPM5 && DIFUPM5 {
+			MACDM5 = "XBUY"
+		} else if price < ma60M5 && XSTRONGDOWNM5 && DIFDOWNM5 {
+			MACDM5 = "XSELL"
 		}
 		// 获取 1 小时 K 线数据
 		closesH1, err = GetClosesWithFallback(client, sym, "1h")
 		if err != nil || len(closesH1) == 0 {
 			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
-			fmt.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
+			progressLogger.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
 			continue
 		}
 		ema25H1 := CalculateEMA(closesH1, 25)
 		if len(ema25H1) == 0 {
 			// 错误注释：检查 ema25H1 长度，避免空数组访问
-			fmt.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
+			progressLogger.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
 			continue
 		}
 		ema25H1Now := ema25H1[len(ema25H1)-1]
@@ -220,7 +236,7 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		}
 
 		// 处理操作逻辑
-		if handleOperation(sym, token, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID) {
+		if handleOperation(sym, token, mid, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID) {
 			changed = true
 		}
 
@@ -320,10 +336,10 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 			newAdded = true
 		}
 	}
-	waitMu.Unlock()
 
 	if newAdded {
 		// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制
 		sendWaitListBroadcast(now, waiting_token, chatID)
 	}
+	waitMu.Unlock()
 }

@@ -41,7 +41,7 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[OKX][KLINES] 第 %d 次构建请求失败: %v\n", attempt, err)
+			progressLogger.Printf("[OKX][KLINES] 第 %d 次构建请求失败: %v\n", attempt, err)
 			if attempt < maxRetries {
 				time.Sleep(time.Second)
 			}
@@ -51,7 +51,7 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[OKX][KLINES] 第 %d 次请求失败: %v\n", attempt, err)
+			progressLogger.Printf("[OKX][KLINES] 第 %d 次请求失败: %v\n", attempt, err)
 			if attempt < maxRetries {
 				time.Sleep(time.Second)
 			}
@@ -62,7 +62,7 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 		resp.Body.Close()
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[OKX][KLINES] 第 %d 次读响应失败: %v\n", attempt, err)
+			progressLogger.Printf("[OKX][KLINES] 第 %d 次读响应失败: %v\n", attempt, err)
 			if attempt < maxRetries {
 				time.Sleep(time.Second)
 			}
@@ -76,7 +76,7 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 		}
 		if err := json.Unmarshal(body, &raw); err != nil {
 			lastErr = err
-			fmt.Printf("[OKX][KLINES] 第 %d 次 JSON 解析失败: %v\n", attempt, err)
+			progressLogger.Printf("[OKX][KLINES] 第 %d 次 JSON 解析失败: %v\n", attempt, err)
 			if attempt < maxRetries {
 				time.Sleep(time.Second)
 			}
@@ -84,7 +84,10 @@ func GetKlinesByAPI_OKX(symbol, tf string, limit int) ([]*OKXKline, []float64, [
 		}
 		if raw.Code != "0" {
 			lastErr = fmt.Errorf("OKX API error: %s %s", raw.Code, raw.Msg)
-			fmt.Printf("[OKX][KLINES] 第 %d 次返回错误: %s %s\n", attempt, raw.Code, raw.Msg)
+			if raw.Code == "51001" && strings.Contains(raw.Msg, "Instrument ID or Spread ID doesn't exist") {
+				return nil, nil, nil, lastErr
+			}
+			progressLogger.Printf("[OKX][KLINES] 第 %d 次返回错误: %s %s\n", attempt, raw.Code, raw.Msg)
 			if attempt < maxRetries {
 				time.Sleep(time.Second)
 			}

@@ -127,7 +127,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[Bitget][KLINES] attempt %d build request error: %v\n", attempt, err)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d build request error: %v\n", attempt, err)
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
@@ -139,7 +139,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[Bitget][KLINES] attempt %d request error: %v\n", attempt, err)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d request error: %v\n", attempt, err)
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
@@ -149,7 +149,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		resp.Body.Close()
 		if err != nil {
 			lastErr = err
-			fmt.Printf("[Bitget][KLINES] attempt %d read body error: %v\n", attempt, err)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d read body error: %v\n", attempt, err)
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
@@ -158,7 +158,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		// 先检查 HTTP 状态
 		if resp.StatusCode != http.StatusOK {
 			lastErr = fmt.Errorf("http status %d body: %s", resp.StatusCode, string(body))
-			fmt.Printf("[Bitget][KLINES] attempt %d http error: %v\n", attempt, lastErr)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d http error: %v\n", attempt, lastErr)
 			// 对于 4xx 大概率不可重试，直接返回
 			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 				return nil, nil, nil, lastErr
@@ -175,7 +175,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		}
 		if err := json.Unmarshal(body, &raw); err != nil {
 			lastErr = err
-			fmt.Printf("[Bitget][KLINES] attempt %d json unmarshal error: %v\n", attempt, err)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d json unmarshal error: %v\n", attempt, err)
 			time.Sleep(backoff)
 			backoff *= 2
 			continue
@@ -184,7 +184,7 @@ func GetKlinesByAPI_Bitget(symbol string, productType string, tf string, limit i
 		// 成功码以 "00000" 为主
 		if raw.Code != "00000" {
 			lastErr = fmt.Errorf("bitget api error: code=%s msg=%s", raw.Code, raw.Msg)
-			fmt.Printf("[Bitget][KLINES] attempt %d api returned error: %s %s\n", attempt, raw.Code, raw.Msg)
+			progressLogger.Printf("[Bitget][KLINES] attempt %d api returned error: %s %s\n", attempt, raw.Code, raw.Msg)
 
 			// ===== 新增：判断交易对不存在，直接返回，不再重试 =====
 			if raw.Code == "40034" || strings.Contains(raw.Msg, "does not exist") {

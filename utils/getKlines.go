@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -40,7 +39,7 @@ func GetKlinesByAPI(client *futures.Client, symbol, tf string, klinesCount int) 
 		}
 
 		// 其他错误，继续重试
-		log.Printf("第 %d 次拉取 %s K线失败: %v", attempt, symbol, err)
+		progressLogger.Printf("第 %d 次拉取 %s K线失败: %v", attempt, symbol, err)
 
 		// 如果还没到最后一次，可以选择短暂等待再试（可按需调整或使用指数退避）
 		if attempt < maxRetries {

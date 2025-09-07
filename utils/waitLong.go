@@ -58,7 +58,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 	defer func() {
 		if r := recover(); r != nil {
 			// 记录 panic 信息，方便调试
-			fmt.Printf("[executeWaitCheckL] Panic recovered \n")
+			progressLogger.Printf("[executeWaitCheckL] Panic recovered \n")
 			// 返回默认值，表示处理失败
 			// 你也可以根据需求记录到日志文件或监控系统
 		}
@@ -81,7 +81,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		var err error
 		closesD1, err = GetClosesWithFallback(client, sym, "1d")
 		if err != nil {
-			fmt.Println("获取数据失败:", err)
+			progressLogger.Println("获取数据失败:", err)
 		}
 		price := closesD1[len(closesD1)-1]
 		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
@@ -89,6 +89,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		ma60D1 := CalculateMA(closesD1, 60)
 		ema25D1 := CalculateEMA(closesD1, 25)
 		ema25D1now := ema25D1[len(ema25D1)-1]
+		MACDD1 = "RANGE"
 		if price > ema25D1now && price > ma60D1 && DIFUP {
 			MACDD1 = "BUYMACD"
 		} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
@@ -104,7 +105,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		}
 		closesH4, err = GetClosesWithFallback(client, sym, "4h")
 		if err != nil {
-			fmt.Println("获取数据失败:", err)
+			progressLogger.Println("获取数据失败:", err)
 		}
 		ma60H4 := CalculateMA(closesH4, 60)
 		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
@@ -117,7 +118,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		//1小时大时
 		closesD3, err = GetClosesWithFallback(client, sym, "3d")
 		if err != nil {
-			fmt.Println("获取数据失败:", err)
+			progressLogger.Println("获取数据失败:", err)
 		}
 		ema25D3 := CalculateEMA(closesD3, 25)
 		ema25D3Now := ema25D3[len(ema25D3)-1]
