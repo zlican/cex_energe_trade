@@ -143,8 +143,8 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 			symbolSet[normalizedSymbol] = struct{}{} // Track added symbols
 		}
 
-		// 确保 BTCUSDT 和 ETHUSDT 存在
-		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT"} {
+		// 确保 BESH 存在
+		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT"} {
 			if _, exists := symbolSet[mustHave]; !exists {
 				candidates = append(candidates, types.Candidate{
 					Symbol:    mustHave,

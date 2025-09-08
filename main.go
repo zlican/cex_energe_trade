@@ -57,10 +57,10 @@ var (
 	slipCoinHARD = []string{"1000PEPEUSDT", "ADAUSDT",
 		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
 		"XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
-		"DOTUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT",
+		"DOTUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "XAUTUSDT",
 		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT",
-		"FILUSDT", "1000BONKUSDC", "MEMEUSDT", "PEPEUSDT",
-		"ATOMUSDT", "BONKUSDT", "SHIBUSDT",
+		"FILUSDT", "1000BONKUSDC", "MEMEUSDT", "PEPEUSDT", "PENGUUSDT",
+		"ATOMUSDT", "BONKUSDT", "SHIBUSDT", "BNBUSDT", "ENAUSDT", "PUMPUSDT",
 	}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
@@ -254,7 +254,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var closesH1, closesM15 []float64
 	var err error
 
-	//非理性断线建立在非理性长线之上。。。
+	//非理性短线建立在非理性长线之上。。。
 	var closesD3, closesD1, closesH4 []float64
 	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 	if err != nil {

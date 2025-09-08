@@ -13,25 +13,37 @@ import (
 	"github.com/adshao/go-binance/v2/futures"
 )
 
+var minuteMonitorOnce sync.Once
+
+// waitToken remains unchanged
 type waitToken struct {
 	Symbol              string
 	Inst                string
 	Operation           string
 	Status              string
 	AddedAt             time.Time
-	LastPushedOperation string // 记录最后一次推送的操作
-	LastInvalidPushed   bool   // 是否已经推送过失效消息
+	LastPushedOperation string
+	LastInvalidPushed   bool
 }
 
+// New: minuteMonitorToken for 1-minute monitoring
+type minuteMonitorToken struct {
+	Symbol              string
+	Operation           string
+	AddedAt             time.Time
+	LastPushedOperation string // Tracks last pushed operation in 1-minute monitoring
+}
+
+// Global variables
 var waitMu sync.Mutex
 var waitList = make(map[string]waitToken)
+var minuteMonitorMu sync.Mutex
+var minuteMonitorList = make(map[string]minuteMonitorToken)
 var progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 
-// sendWaitListBroadcast 用于主动推送等待区列表
+// sendWaitListBroadcast (unchanged)
 func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
-
 	if len(waitList) == 0 {
-		// 错误注释：如果 Telegram 发送失败，依赖其内置指数退避重试机制
 		telegram.SendMessageWaiting(waiting_token, chatID, "等待区为空")
 		return
 	}
@@ -50,26 +62,41 @@ func sendWaitListBroadcast(now time.Time, waiting_token, chatID string) {
 		msgBuilder.WriteString(fmt.Sprintf("%s %-36s\n", emoji, token.Symbol))
 	}
 	msg := msgBuilder.String()
-	// 错误注释：如果发送失败，Telegram 内置重试机制会尝试重新发送
 	telegram.SendMessageWaiting(waiting_token, chatID, msg)
 }
 
-// handleOperation 处理单一操作（BEBUY/BESELL/OTBUY/OTSELL）的通用逻辑
-// 返回值：bool 表示是否从 waitList 删除该代币
+// New: sendMinuteMonitorBroadcast for 1-minute monitoring signals
+func sendMinuteMonitorBroadcast(sym string, operation, wait_sucess_token, chatID string) error {
+	emoji := "🟢"
+	action := "做多"
+	if operation == "SELL" {
+		emoji = "🔴"
+		action = "做空"
+	}
+	msg := fmt.Sprintf("%s%s(1m) ：%s%s", emoji, action, emoji, sym)
+	if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
+		progressLogger.Printf("发送 1分钟监控 Telegram 消息失败 (%s): %v\n", sym, err)
+		return err
+	}
+	return nil
+}
+
+// Modified: handleOperation to integrate 1-minute monitoring
 func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID string) bool {
 	isBuy := token.Operation == "BUY"
 	emoji := "🟢"
-	validMACD15 := "BUYMACD"
+	validMACD := "BUYMACD"
 	validX := "XBUY"
 	validMid := "UP"
 	if !isBuy {
 		emoji = "🔴"
-		validMACD15 = "SELLMACD"
+		validMACD = "SELLMACD"
 		validX = "XSELL"
 		validMid = "DOWN"
 	}
-	// 条件 1：信号有效，发送交易信号
-	if MACDH1 == validMACD15 && ((MACDM15 == validMACD15 && MACDM5 == validX) || MACDM15 == validX) {
+
+	// Condition 1: Signal valid, send trading signal
+	if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validX {
 		if token.LastPushedOperation != token.Operation {
 			var action string
 			if isBuy {
@@ -78,25 +105,35 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 				action = "做空"
 			}
 			msg := fmt.Sprintf("%s%s：%s%s", emoji, action, emoji, sym)
-			// 错误注释：如果 Telegram 发送失败，依赖其内置指数退避重试机制，失败后跳过状态更新
 			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 				progressLogger.Printf("发送 Telegram 消息失败 (%s): %v\n", sym, err)
 				return false
 			}
 			t := waitList[sym]
 			t.LastPushedOperation = token.Operation
-			t.LastInvalidPushed = false // 重置失效推送标志
+			t.LastInvalidPushed = false
 			waitList[sym] = t
 		}
 		return false
+	} else if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD {
+		// Add to 1-minute monitoring pipeline
+		minuteMonitorMu.Lock()
+		if _, exists := minuteMonitorList[sym]; !exists {
+			minuteMonitorList[sym] = minuteMonitorToken{
+				Symbol:    sym,
+				Operation: token.Operation,
+				AddedAt:   time.Now(),
+			}
+			progressLogger.Printf("Added %s to 1-minute monitoring for %s\n", sym, token.Operation)
+		}
+		minuteMonitorMu.Unlock()
 	}
 
-	// 条件 2：15分钟信号失效，从 waitList 删除
+	// Condition 2: 15-minute signal invalid, remove from waitList and minuteMonitorList
 	if mid != validMid {
 		t := waitList[sym]
 		if t.LastPushedOperation == token.Operation && !t.LastInvalidPushed {
 			msg := fmt.Sprintf("⚠️信号失效：%s", sym)
-			// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制，失败后仍删除代币以避免重复处理
 			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 				progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
 			} else {
@@ -104,39 +141,141 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 				waitList[sym] = t
 			}
 		}
+		// Remove from minute monitoring if present
+		minuteMonitorMu.Lock()
+		delete(minuteMonitorList, sym)
+		minuteMonitorMu.Unlock()
 		delete(waitList, sym)
 		return true
 	}
 
-	// 条件 3：其他情况，发送失效消息并清空推送状态
+	// Condition 3: Other cases, send invalid signal and clear push state
 	t := waitList[sym]
 	if t.LastPushedOperation == token.Operation && !t.LastInvalidPushed {
 		msg := fmt.Sprintf("⚠️信号失效：%s", sym)
-		// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制，失败后仍更新状态以避免重复发送
 		if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 			progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
 		}
 		t.LastInvalidPushed = true
 	}
-	t.LastPushedOperation = "" // 清空，允许下次推送
+	t.LastPushedOperation = ""
 	waitList[sym] = t
 	return false
 }
 
-func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
-	// 使用 defer 捕获可能的 panic
+// New: executeMinuteMonitorCheck for 1-minute monitoring
+func executeMinuteMonitorCheck(wait_sucess_token, chatID string, client *futures.Client, now time.Time) {
 	defer func() {
 		if r := recover(); r != nil {
-			// 错误注释：捕获 panic，避免程序崩溃，但需记录详细日志以便调试
+			progressLogger.Printf("[executeMinuteMonitorCheck] Panic recovered: %v\n", r)
+		}
+	}()
+
+	// small delay if needed (保持你原来的 7s 也可以)
+	time.Sleep(7 * time.Second)
+
+	// Copy list quickly under lock
+	minuteMonitorMu.Lock()
+	monitorCopy := make(map[string]minuteMonitorToken, len(minuteMonitorList))
+	for k, v := range minuteMonitorList {
+		monitorCopy[k] = v
+	}
+	minuteMonitorMu.Unlock()
+
+	// collect changes
+	toRemove := make([]string, 0)
+	// messages to send (sym -> msg)
+	msgsToSend := make([]struct{ sym, operation string }, 0)
+
+	for sym, token := range monitorCopy {
+		// --- 获取 1m 数据（无锁） ---
+		closesM1, err := GetClosesWithFallback(client, sym, "1m")
+		if err != nil || len(closesM1) == 0 {
+			progressLogger.Printf("获取 %s (1m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		price1 := closesM1[len(closesM1)-1]
+		ma60M1 := CalculateMA(closesM1, 60)
+		XSTRONGUPM1 := XSTRONGUP(closesM1, 6, 13, 5)
+		XSTRONGDOWNM1 := XSTRONGDOWN(closesM1, 6, 13, 5)
+		DIFUPM1 := IsDIFUP(closesM1, 6, 13, 5)
+		DIFDOWNM1 := IsDIFDOWN(closesM1, 6, 13, 5)
+
+		validX := "XBUY"
+		if token.Operation == "SELL" {
+			validX = "XSELL"
+		}
+
+		MACDM1 := ""
+		if price1 > ma60M1 && XSTRONGUPM1 && DIFUPM1 {
+			MACDM1 = "XBUY"
+		} else if price1 < ma60M1 && XSTRONGDOWNM1 && DIFDOWNM1 {
+			MACDM1 = "XSELL"
+		}
+
+		// 如果触发并且还未 push
+		if MACDM1 == validX && token.LastPushedOperation != token.Operation {
+			msgsToSend = append(msgsToSend, struct{ sym, operation string }{sym, token.Operation})
+			toRemove = append(toRemove, sym) //发送一次就删除了
+		}
+
+		// --- 检查 5m 恢复/破位，以便移除 ---
+		closesM5, err := GetClosesWithFallback(client, sym, "5m")
+		if err != nil || len(closesM5) < 3 {
+			progressLogger.Printf("获取 %s (5m) 数据失败 (需要 >=3): %v\n", sym, err)
+			continue
+		}
+		pricePre := closesM5[len(closesM5)-2]
+		pricePre2 := closesM5[len(closesM5)-3]
+		_, ema25M5now := CalculateEMA(closesM5, 25)
+
+		trendEnded := (token.Operation == "BUY" && (pricePre < ema25M5now || pricePre2 < ema25M5now)) ||
+			(token.Operation == "SELL" && (pricePre > ema25M5now || pricePre2 > ema25M5now))
+
+		if trendEnded {
+			toRemove = append(toRemove, sym)
+			progressLogger.Printf("Removed %s from 1-minute monitoring due to trend end\n", sym)
+			continue
+		}
+
+		// timeout
+		if now.Sub(token.AddedAt) > 1*time.Hour {
+			toRemove = append(toRemove, sym)
+			progressLogger.Printf("Removed %s from 1-minute monitoring due to timeout\n", sym)
+			continue
+		}
+	}
+
+	// APPLY  removals under lock
+	if len(toRemove) > 0 {
+		minuteMonitorMu.Lock()
+		for _, sym := range toRemove {
+			delete(minuteMonitorList, sym)
+		}
+		minuteMonitorMu.Unlock()
+		progressLogger.Printf("1-minute monitor list updated, %d coins remaining\n", len(minuteMonitorList))
+	}
+
+	// SEND messages (outside lock)
+	for _, m := range msgsToSend {
+		if err := sendMinuteMonitorBroadcast(m.sym, m.operation, wait_sucess_token, chatID); err != nil {
+			progressLogger.Printf("发送 1分钟消息失败: %s %v\n", m.sym, err)
+		}
+	}
+}
+
+// Modified: executeWaitCheck to start 1-minute monitoring loop
+func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
+	// Existing logic (unchanged except for mutex scope)
+	defer func() {
+		if r := recover(); r != nil {
 			progressLogger.Printf("[executeWaitCheck] Panic recovered: %v\n", r)
 		}
 	}()
 
-	time.Sleep(10 * time.Second) // 保持原有延迟
+	time.Sleep(10 * time.Second)
 
-	var changed bool // 是否发生了删除
-
-	// 单次锁定，复制 waitList 以避免并发修改
+	var changed bool
 	waitMu.Lock()
 	waitCopy := make(map[string]waitToken)
 	for k, v := range waitList {
@@ -144,7 +283,6 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 	}
 	waitMu.Unlock()
 
-	// 单次锁定处理所有代币
 	waitMu.Lock()
 	defer waitMu.Unlock()
 
@@ -152,13 +290,13 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		var MACDM5, MACDM15, MACDH1 string
 		var mid string
 
-		var closesM15, closesM5, closesH1 []float64
-		var err error
-		// 获取 15 分钟 K 线数据
-		closesM15, err = GetClosesWithFallback(client, sym, "15m")
-		if err != nil || len(closesM15) == 0 {
-			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+		closesM15, err := GetClosesWithFallback(client, sym, "15m")
+		if err != nil {
 			progressLogger.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		if len(closesM15) < 3 {
+			progressLogger.Printf("%s (15m) 数据不足: %d\n", sym, len(closesM15))
 			continue
 		}
 		price := closesM15[len(closesM15)-1]
@@ -168,7 +306,6 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 		ma60M15 := CalculateMA(closesM15, 60)
 		ema25M15, ema25M15now := CalculateEMA(closesM15, 25)
-		// 错误注释：检查 ema25M15 长度，避免空数组访问
 		if len(ema25M15) == 0 {
 			progressLogger.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
 			continue
@@ -179,16 +316,6 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		} else if price < ema25M15now && price < ma60M15 && DIFDOWNM15 {
 			MACDM15 = "SELLMACD"
 		}
-		XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
-		if XSTRONGUPM15 && price > ma60M15 && DIFUPM15 {
-			MACDM15 = "XBUY"
-		}
-		XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
-		if XSTRONGDOWNM15 && price < ma60M15 && DIFDOWNM15 {
-			MACDM15 = "XSELL"
-		}
-
-		//趋势结束标志
 		mid = "RANGE"
 		if pricePre > ema25M15now || pricePre2 > ema25M15now {
 			mid = "UP"
@@ -196,11 +323,13 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			mid = "DOWN"
 		}
 
-		// 获取 5 分钟 K 线数据
-		closesM5, err = GetClosesWithFallback(client, sym, "5m")
-		if err != nil || len(closesM5) == 0 {
-			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+		closesM5, err := GetClosesWithFallback(client, sym, "5m")
+		if err != nil {
 			progressLogger.Printf("获取 %s (5m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		if len(closesM5) < 3 {
+			progressLogger.Printf("%s (5m) 数据不足: %d\n", sym, len(closesM5))
 			continue
 		}
 		ma60M5 := CalculateMA(closesM5, 60)
@@ -208,21 +337,29 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
 		DIFUPM5 := IsDIFUP(closesM5, 6, 13, 5)
 		DIFDOWNM5 := IsDIFDOWN(closesM5, 6, 13, 5)
+		_, ema25M5now := CalculateEMA(closesM5, 25)
+		if price > ema25M5now && price > ma60M5 && DIFUPM5 {
+			MACDM5 = "BUYMACD"
+		} else if price < ema25M5now && price < ma60M5 && DIFDOWNM5 {
+			MACDM5 = "SELLMACD"
+		}
 		if price > ma60M5 && XSTRONGUPM5 && DIFUPM5 {
 			MACDM5 = "XBUY"
 		} else if price < ma60M5 && XSTRONGDOWNM5 && DIFDOWNM5 {
 			MACDM5 = "XSELL"
 		}
-		// 获取 1 小时 K 线数据
-		closesH1, err = GetClosesWithFallback(client, sym, "1h")
-		if err != nil || len(closesH1) == 0 {
-			// 错误注释：数据获取失败或返回空数组，跳过以避免 panic
+
+		closesH1, err := GetClosesWithFallback(client, sym, "1h")
+		if err != nil {
 			progressLogger.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
+			continue
+		}
+		if len(closesH1) < 3 {
+			progressLogger.Printf("%s (1h) 数据不足: %d\n", sym, len(closesH1))
 			continue
 		}
 		ema25H1, ema25H1Now := CalculateEMA(closesH1, 25)
 		if len(ema25H1) == 0 {
-			// 错误注释：检查 ema25H1 长度，避免空数组访问
 			progressLogger.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
 			continue
 		}
@@ -235,26 +372,26 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			MACDH1 = "SELLMACD"
 		}
 
-		// 处理操作逻辑
 		if handleOperation(sym, token, mid, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID) {
 			changed = true
 		}
 
-		// 检查是否超时（8小时）
 		if now.Sub(token.AddedAt) > 8*time.Hour {
-			// 错误注释：超时删除代币，未通知用户，可能需添加 Telegram 通知
 			delete(waitList, sym)
+			minuteMonitorMu.Lock()
+			delete(minuteMonitorList, sym)
+			minuteMonitorMu.Unlock()
 			changed = true
 		}
 	}
 
 	if changed {
-		// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制
 		sendWaitListBroadcast(now, waiting_token, chatID)
 	}
 }
 
-func waitUntilNext5Min() time.Duration { // 每5分钟监控
+// waitUntilNext5Min (unchanged)
+func waitUntilNext5Min() time.Duration {
 	now := time.Now()
 	next := now.Truncate(time.Minute).Add(time.Duration(5-now.Minute()%5) * time.Minute)
 	if next.Before(now) || next.Equal(now) {
@@ -263,6 +400,7 @@ func waitUntilNext5Min() time.Duration { // 每5分钟监控
 	return time.Until(next)
 }
 
+// WaitEnerge (unchanged)
 func WaitEnerge(
 	resultsChan chan []types.CoinIndicator,
 	wait_sucess_token, chatID string,
@@ -271,32 +409,23 @@ func WaitEnerge(
 	waiting_token string,
 ) {
 	go func() {
-		// 先消费一次已有消息，保证 waitList 不为空
 		drainResults(resultsChan, waiting_token, chatID)
-
-		// 执行首次检测
 		now := time.Now()
 		executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
-
-		// 等到下一个 5 分钟整点
 		time.Sleep(waitUntilNext5Min())
-
-		// 每 5 分钟触发
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
-
 		for now := range ticker.C {
 			go executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
-
-	// 常规消费
+	startMinuteMonitorLoop(wait_sucess_token, chatID, client)
 	for newResults := range resultsChan {
 		addToWaitList(newResults, waiting_token, chatID)
 	}
 }
 
-// 启动时先 drain 一次通道（非阻塞，防止残留）
+// drainResults (unchanged)
 func drainResults(resultsChan chan []types.CoinIndicator, waiting_token, chatID string) {
 	for {
 		select {
@@ -308,6 +437,7 @@ func drainResults(resultsChan chan []types.CoinIndicator, waiting_token, chatID 
 	}
 }
 
+// addToWaitList (unchanged)
 func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID string) {
 	var newAdded bool
 	now := time.Now()
@@ -338,8 +468,22 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 	}
 
 	if newAdded {
-		// 错误注释：如果 Telegram 发送失败，依赖其内置重试机制
 		sendWaitListBroadcast(now, waiting_token, chatID)
 	}
 	waitMu.Unlock()
+}
+
+func startMinuteMonitorLoop(wait_sucess_token, chatID string, client *futures.Client) {
+	minuteMonitorOnce.Do(func() {
+		go func() {
+			// 对齐到下一个整分钟
+			time.Sleep(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for now := range ticker.C {
+				// 每分钟并发执行一次检查（执行过程中不会持锁）
+				go executeMinuteMonitorCheck(wait_sucess_token, chatID, client, now)
+			}
+		}()
+	})
 }
