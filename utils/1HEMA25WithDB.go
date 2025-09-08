@@ -46,8 +46,8 @@ func Update1hEMA25ToDB(client *futures.Client, db *sql.DB, limitVolume float64, 
 			closes = append(closes, c)
 		}
 
-		ema25 := CalculateEMA(closes, 25)
-		ema50 := CalculateEMA(closes, 50)
+		ema25, _ := CalculateEMA(closes, 25)
+		ema50, _ := CalculateEMA(closes, 50)
 		if len(ema25) == 0 {
 			continue
 		}

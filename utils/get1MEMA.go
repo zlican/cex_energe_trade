@@ -36,8 +36,8 @@ func Get1MEMA(client *futures.Client, klinesCount int, symbol string) (float64, 
 		closes = append(closes, c)
 	}
 
-	ema25 := CalculateEMA(closes, 25)
-	ema50 := CalculateEMA(closes, 50)
+	ema25, _ := CalculateEMA(closes, 25)
+	ema50, _ := CalculateEMA(closes, 50)
 
 	return ema25[len(ema25)-1], ema50[len(ema50)-1]
 }

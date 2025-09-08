@@ -167,13 +167,12 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
 		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 		ma60M15 := CalculateMA(closesM15, 60)
-		ema25M15 := CalculateEMA(closesM15, 25)
+		ema25M15, ema25M15now := CalculateEMA(closesM15, 25)
 		// 错误注释：检查 ema25M15 长度，避免空数组访问
 		if len(ema25M15) == 0 {
 			progressLogger.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
 			continue
 		}
-		ema25M15now := ema25M15[len(ema25M15)-1]
 		MACDM15 = "RANGE"
 		if price > ema25M15now && price > ma60M15 && DIFUPM15 {
 			MACDM15 = "BUYMACD"
@@ -221,13 +220,12 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			progressLogger.Printf("获取 %s (1h) 数据失败: %v\n", sym, err)
 			continue
 		}
-		ema25H1 := CalculateEMA(closesH1, 25)
+		ema25H1, ema25H1Now := CalculateEMA(closesH1, 25)
 		if len(ema25H1) == 0 {
 			// 错误注释：检查 ema25H1 长度，避免空数组访问
 			progressLogger.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
 			continue
 		}
-		ema25H1Now := ema25H1[len(ema25H1)-1]
 		ma60H1 := CalculateMA(closesH1, 60)
 		DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
 		DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)

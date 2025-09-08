@@ -90,8 +90,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
 		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
 		ma60D1 := CalculateMA(closesD1, 60)
-		ema25D1 := CalculateEMA(closesD1, 25)
-		ema25D1now := ema25D1[len(ema25D1)-1]
+		_, ema25D1now := CalculateEMA(closesD1, 25)
 		MACDD1 = "RANGE"
 		if price > ema25D1now && price > ma60D1 && DIFUP {
 			MACDD1 = "BUYMACD"
@@ -134,8 +133,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		if err != nil {
 			progressLogger.Println("获取数据失败:", err)
 		}
-		ema25D3 := CalculateEMA(closesD3, 25)
-		ema25D3Now := ema25D3[len(ema25D3)-1]
+		_, ema25D3Now := CalculateEMA(closesD3, 25)
 		ma60D3 := CalculateMA(closesD3, 60)
 		DIFUPD3 := IsDIFUP(closesD3, 6, 13, 5)
 		DIFDOWND3 := IsDIFDOWN(closesD3, 6, 13, 5)

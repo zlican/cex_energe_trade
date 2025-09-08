@@ -47,14 +47,12 @@ func Update5MEMAToDB(client *futures.Client, db *sql.DB, limitVolume float64, kl
 			closes = append(closes, c)
 		}
 
-		ema25 := CalculateEMA(closes, 25)
-		ema50 := CalculateEMA(closes, 50)
+		ema25, lastEMA25 := CalculateEMA(closes, 25)
+		_, lastEMA50 := CalculateEMA(closes, 50)
 		ma60 := CalculateMA(closes, 60)
 		if len(ema25) == 0 {
 			continue
 		}
-		lastEMA25 := ema25[len(ema25)-1]
-		lastEMA50 := ema50[len(ema50)-1]
 		lastTime := klines[len(klines)-1].CloseTime
 		_, kLine, _ := StochRSIFromClose(closes, 14, 14, 3, 3)
 		lastKLine := kLine[len(kLine)-1]

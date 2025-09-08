@@ -28,9 +28,9 @@ func CalculateEMADerivative(ema []float64) []float64 {
 }
 */
 
-func CalculateEMA(data []float64, period int) []float64 {
+func CalculateEMA(data []float64, period int) ([]float64, float64) {
 	if len(data) == 0 {
-		return nil
+		return nil, 0
 	}
 
 	ema := make([]float64, len(data))
@@ -63,7 +63,7 @@ func CalculateEMA(data []float64, period int) []float64 {
 		ema[i] = (data[i]-ema[i-1])*multiplier + ema[i-1]
 	}
 
-	return ema
+	return ema, ema[len(ema)-1]
 }
 
 // 计算 EMA 的一阶导数（宽松模式，少数据也能形成值）

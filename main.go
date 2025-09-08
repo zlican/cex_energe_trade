@@ -54,15 +54,12 @@ var (
 		"PYTHUSDT", "BIOUSDT", "PIPPINUSDT", "OPUSDT", "IPUSDT", "PARTIUSDT", "SYRUPUSDT",
 		"PENDLEUSDT", "TRUMPOFFICIALUSDT",
 	} // 想排除的币放这里
-	slipCoinHARD = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT",
+	slipCoinHARD = []string{"1000PEPEUSDT", "ADAUSDT",
 		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
-		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
-		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT",
+		"XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
+		"DOTUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT",
 		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT",
-		"FILUSDT", "INJUSDT", "1000BONKUSDC",
-		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT",
-		"APTUSDT", "DOGEUSDC", "VIRTUALUSDT",
-		"VINEUSDT", "MEMEUSDT", "PEPEUSDT",
+		"FILUSDT", "1000BONKUSDC", "MEMEUSDT", "PEPEUSDT",
 		"ATOMUSDT", "BONKUSDT", "SHIBUSDT",
 	}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
@@ -257,15 +254,62 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var closesH1, closesM15 []float64
 	var err error
 
-	//大时
+	//非理性断线建立在非理性长线之上。。。
+	var closesD3, closesD1, closesH4 []float64
+	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+	priceBIG := closesD3[len(closesD3)-1]
+	_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
+	if priceBIG > EMA25D3 { //长线正
+		closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
+		}
+		_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
+		if priceBIG > EMA25D1 {
+			closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
+			if err != nil {
+				fmt.Println("获取数据失败:", err)
+			}
+			_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
+			if priceBIG < EMA25H4 {
+				return types.CoinIndicator{}, false
+			}
+		} else {
+			return types.CoinIndicator{}, false
+		}
+	} else if priceBIG < EMA25D3 {
+		closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
+		}
+		_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
+		if priceBIG < EMA25D1 {
+			closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
+			if err != nil {
+				fmt.Println("获取数据失败:", err)
+			}
+			_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
+			if priceBIG > EMA25H4 {
+				return types.CoinIndicator{}, false
+			}
+		} else {
+			return types.CoinIndicator{}, false
+		}
+	} else {
+		return types.CoinIndicator{}, false
+	}
+
+	//短线大时
 	closesH1, err = utils.GetClosesWithFallback(client, symbol, "1h")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
 	//大时趋势环境
 	price := closesH1[len(closesH1)-1]
-	ema25H1 := utils.CalculateEMA(closesH1, 25)
-	ema25H1Now := ema25H1[len(ema25H1)-1]
+	_, ema25H1Now := utils.CalculateEMA(closesH1, 25)
 	ma60H1 := utils.CalculateMA(closesH1, 60)
 	DIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
@@ -287,8 +331,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	//中时未有效跌破
 	pricePre := closesM15[len(closesM15)-2]
 	pricePre2 := closesM15[len(closesM15)-3]
-	EMA25M15 := utils.CalculateEMA(closesM15, 25)
-	EMA25M15NOW := EMA25M15[len(EMA25M15)-1]
+	_, EMA25M15NOW := utils.CalculateEMA(closesM15, 25)
 
 	if pricePre > EMA25M15NOW || pricePre2 > EMA25M15NOW {
 		if MACDH1 == "BUYMACD" {
@@ -341,8 +384,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	}
 
 	price := closesD3[len(closesD3)-1]
-	EMA25D3 := utils.CalculateEMA(closesD3, 25)
-	EMA25D3NOW := EMA25D3[len(EMA25D3)-1]
+	_, EMA25D3NOW := utils.CalculateEMA(closesD3, 25)
 	ma60D3 := utils.CalculateMA(closesD3, 60)
 	DIFUP := utils.IsDIFUP(closesD3, 6, 13, 5)
 	DIFDOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
@@ -362,9 +404,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	//中时未有效跌破
 	pricePre := closesD1[len(closesD1)-2]
 	pricePre2 := closesD1[len(closesD1)-3]
-	EMA25D1 := utils.CalculateEMA(closesD1, 25)
-	EMA25D1NOW := EMA25D1[len(EMA25D1)-1]
-
+	_, EMA25D1NOW := utils.CalculateEMA(closesD1, 25)
 	if pricePre > EMA25D1NOW || pricePre2 > EMA25D1NOW {
 		if MACDD3 == "BUYMACD" {
 			status := "Wait"
