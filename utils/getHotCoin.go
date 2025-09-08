@@ -144,7 +144,7 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 		}
 
 		// 确保 BESH 存在
-		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT"} {
+		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT"} {
 			if _, exists := symbolSet[mustHave]; !exists {
 				candidates = append(candidates, types.Candidate{
 					Symbol:    mustHave,

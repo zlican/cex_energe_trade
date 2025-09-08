@@ -124,7 +124,6 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 				Operation: token.Operation,
 				AddedAt:   time.Now(),
 			}
-			progressLogger.Printf("Added %s to 1-minute monitoring for %s\n", sym, token.Operation)
 		}
 		minuteMonitorMu.Unlock()
 	}
