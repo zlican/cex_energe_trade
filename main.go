@@ -126,6 +126,7 @@ func main() {
 			topGainers = Symbols
 		}
 	}()
+	//启动24小数交易数据获取
 	go func() {
 		for Symbols := range chTicker24h {
 			ticker24h = Symbols
@@ -393,6 +394,8 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 /* ====================== 单币分析 ====================== */
 
 func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
+	//BIGTR: 3D,1W
+	//大时1D，中时4H，小时1H
 	// 使用 defer 捕获可能的 panic
 	defer func() {
 		if r := recover(); r != nil {
@@ -405,71 +408,73 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	symbol := c.Symbol
 	var inst string
 
-	var MACDD3 string
-	var closesD3, closesD1 []float64
+	var MACDD1 string
+	var closesW1, closesD3, closesD1, closesH4 []float64
 	var err error
+	var BIGTrend string
 
-	var closesW1, closesM1 []float64
-	closesM1, err = utils.GetClosesWithFallback(client, symbol, "1M")
+	closesW1, err = utils.GetClosesWithFallback(client, symbol, "1w")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
-	priceBIG := closesM1[len(closesM1)-1]
-	_, EMA25M1 := utils.CalculateEMA(closesM1, 25)
-	DIFUPM1 := utils.IsDIFUP(closesM1, 6, 13, 5)
-	DIFDOWNM1 := utils.IsDIFDOWN(closesM1, 6, 13, 5)
-	if priceBIG > EMA25M1 && DIFUPM1 {
-		closesW1, err = utils.GetClosesWithFallback(client, symbol, "1w")
+	priceBIG := closesW1[len(closesW1)-1]
+	_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
+	DIFUPW1 := utils.IsDIFUP(closesW1, 6, 13, 5)
+	DIFDOWNW1 := utils.IsDIFDOWN(closesW1, 6, 13, 5)
+	if priceBIG > EMA25W1 && DIFUPW1 {
+		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
-		_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
-		DIFDOWNW1 := utils.IsDIFDOWN(closesW1, 6, 13, 5)
-		if priceBIG < EMA25W1 || DIFDOWNW1 {
+		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
+		DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
+		if priceBIG < EMA25D3 || DIFDOWND3 {
 			return types.CoinIndicator{}, false
 		}
-	} else if priceBIG < EMA25M1 && DIFDOWNM1 {
-		closesW1, err = utils.GetClosesWithFallback(client, symbol, "1W")
+		BIGTrend = "BUYMACD"
+	} else if priceBIG < EMA25W1 && DIFDOWNW1 {
+		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
-		_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
-		DIFUPW1 := utils.IsDIFUP(closesW1, 6, 13, 5)
-		if priceBIG > EMA25W1 || DIFUPW1 {
+		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
+		DIFUPD3 := utils.IsDIFUP(closesD3, 6, 13, 5)
+		if priceBIG > EMA25D3 || DIFUPD3 {
 			return types.CoinIndicator{}, false
 		}
+		BIGTrend = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
 	}
 
-	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
-	if err != nil {
-		fmt.Println("获取数据失败:", err)
-	}
-
-	price := closesD3[len(closesD3)-1]
-	_, EMA25D3NOW := utils.CalculateEMA(closesD3, 25)
-	DIFUP := utils.IsDIFUP(closesD3, 6, 13, 5)
-	DIFDOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
-
-	if price > EMA25D3NOW && DIFUP {
-		MACDD3 = "BUYMACD"
-	} else if price < EMA25D3NOW && DIFDOWN {
-		MACDD3 = "SELLMACD"
-	} else {
-		return types.CoinIndicator{}, false
-	}
 	closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
 
-	//中时未有效跌破
-	pricePre := closesD1[len(closesD1)-2]
-	pricePre2 := closesD1[len(closesD1)-3]
+	price := closesD1[len(closesD1)-1]
 	_, EMA25D1NOW := utils.CalculateEMA(closesD1, 25)
-	if pricePre > EMA25D1NOW || pricePre2 > EMA25D1NOW {
-		if MACDD3 == "BUYMACD" {
+	DIFUP := utils.IsDIFUP(closesD1, 6, 13, 5)
+	DIFDOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+
+	if price > EMA25D1NOW && DIFUP {
+		MACDD1 = "BUYMACD"
+	} else if price < EMA25D1NOW && DIFDOWN {
+		MACDD1 = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+	closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+
+	//中时未有效跌破
+	pricePre := closesH4[len(closesH4)-2]
+	pricePre2 := closesH4[len(closesH4)-3]
+	_, EMA25H4NOW := utils.CalculateEMA(closesH4, 25)
+	if pricePre > EMA25H4NOW || pricePre2 > EMA25H4NOW {
+		if MACDD1 == "BUYMACD" && BIGTrend == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -478,8 +483,8 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if pricePre < EMA25D1NOW || pricePre2 < EMA25D1NOW {
-		if MACDD3 == "SELLMACD" {
+	} else if pricePre < EMA25H4NOW || pricePre2 < EMA25H4NOW {
+		if MACDD1 == "SELLMACD" && BIGTrend == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,

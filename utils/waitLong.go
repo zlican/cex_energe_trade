@@ -11,6 +11,8 @@ import (
 	"github.com/adshao/go-binance/v2/futures"
 )
 
+var minMonitorOnce sync.Once
+
 type waitTokenL struct {
 	Symbol              string
 	Inst                string
@@ -21,8 +23,18 @@ type waitTokenL struct {
 	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
 }
 
+// New: minMonitorToken for 15-min monitoring
+type minMonitorToken struct {
+	Symbol              string
+	Operation           string
+	AddedAt             time.Time
+	LastPushedOperation string // Tracks last pushed operation in 15-min monitoring
+}
+
 var waitMuL sync.Mutex
 var waitListL = make(map[string]waitTokenL)
+var minMonitorMu sync.Mutex
+var minMonitorList = make(map[string]minMonitorToken)
 
 // sendWaitListBroadcast 用于主动推送等待区列表
 func sendWaitListBroadcastL(now time.Time, waiting_token, chatID string) {
@@ -75,68 +87,75 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 	waitMuL.Unlock()
 
 	for sym, token := range waitCopy {
-		var MACDH4, MACDD1, MACDD3 string
+		var MACDH4, MACDD1, MACDH1 string
 		var mid string
 
-		var closesD3, closesD1, closesH4 []float64
+		var closesH1, closesD1, closesH4 []float64
 		var err error
-		closesD1, err = GetClosesWithFallback(client, sym, "1d")
-		if err != nil {
-			progressLogger.Println("获取数据失败:", err)
-		}
-		price := closesD1[len(closesD1)-1]
-		pricePre := closesD1[len(closesD1)-2]
-		pricePre2 := closesD1[len(closesD1)-3]
-		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
-		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
-		_, ema25D1now := CalculateEMA(closesD1, 25)
-		MACDD1 = "RANGE"
-		if price > ema25D1now && DIFUP {
-			MACDD1 = "BUYMACD"
-		} else if price < ema25D1now && DIFDOWN {
-			MACDD1 = "SELLMACD"
-		}
-
-		//趋势结束标志
-		mid = "RANGE"
-		if pricePre > ema25D1now || pricePre2 > ema25D1now {
-			mid = "UP"
-		} else if pricePre < ema25D1now || pricePre2 < ema25D1now {
-			mid = "DOWN"
-		}
-
 		closesH4, err = GetClosesWithFallback(client, sym, "4h")
 		if err != nil {
 			progressLogger.Println("获取数据失败:", err)
 		}
-		ma60H4 := CalculateMA(closesH4, 60)
-		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
-		XSTRONGDOWNH4 := XSTRONGDOWN(closesH4, 6, 13, 5)
-		DIFUPH4 := IsDIFUP(closesH4, 6, 13, 5)
-		DIFDOWNH4 := IsDIFDOWN(closesH4, 6, 13, 5)
-		if price > ma60H4 && XSTRONGUPH4 && DIFUPH4 {
-			MACDH4 = "XBUY"
-		} else if price < ma60H4 && XSTRONGDOWNH4 && DIFDOWNH4 {
-			MACDH4 = "XSELL"
+		price := closesH4[len(closesH4)-1]
+		pricePre := closesH4[len(closesH4)-2]
+		pricePre2 := closesH4[len(closesH4)-3]
+		DIFUP := IsDIFUP(closesH4, 6, 13, 5)
+		DIFDOWN := IsDIFDOWN(closesH4, 6, 13, 5)
+		_, ema25H4now := CalculateEMA(closesH4, 25)
+		MACDH4 = "RANGE"
+		if price > ema25H4now && DIFUP {
+			MACDH4 = "BUYMACD"
+		} else if price < ema25H4now && DIFDOWN {
+			MACDH4 = "SELLMACD"
 		}
-		//1小时大时
-		closesD3, err = GetClosesWithFallback(client, sym, "3d")
+
+		//趋势结束标志
+		mid = "RANGE"
+		if pricePre > ema25H4now || pricePre2 > ema25H4now {
+			mid = "UP"
+		} else if pricePre < ema25H4now || pricePre2 < ema25H4now {
+			mid = "DOWN"
+		}
+
+		closesH1, err = GetClosesWithFallback(client, sym, "1h")
 		if err != nil {
 			progressLogger.Println("获取数据失败:", err)
 		}
-		_, ema25D3Now := CalculateEMA(closesD3, 25)
-		DIFUPD3 := IsDIFUP(closesD3, 6, 13, 5)
-		DIFDOWND3 := IsDIFDOWN(closesD3, 6, 13, 5)
+		ma60H1 := CalculateMA(closesH1, 60)
+		_, EMA25H1 := CalculateEMA(closesH1, 25)
+		XSTRONGUPH1 := XSTRONGUP(closesH1, 6, 13, 5)
+		XSTRONGDOWNH1 := XSTRONGDOWN(closesH1, 6, 13, 5)
+		DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
+		DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
+		MACDH1 = "RANGE"
+		if price > EMA25H1 && DIFUPH1 {
+			MACDH1 = "BUYMACD"
+		} else if price < EMA25H1 && DIFDOWNH1 {
+			MACDH1 = "SELLMACD"
+		}
+		if price > ma60H1 && XSTRONGUPH1 && DIFUPH1 {
+			MACDH1 = "XBUY"
+		} else if price < ma60H1 && XSTRONGDOWNH1 && DIFDOWNH1 {
+			MACDH1 = "XSELL"
+		}
 
-		if DIFUPD3 && price > ema25D3Now {
-			MACDD3 = "BUYMACD"
-		} else if DIFDOWND3 && price < ema25D3Now {
-			MACDD3 = "SELLMACD"
+		closesD1, err = GetClosesWithFallback(client, sym, "1d")
+		if err != nil {
+			progressLogger.Println("获取数据失败:", err)
+		}
+		_, ema25D1Now := CalculateEMA(closesD1, 25)
+		DIFUPD1 := IsDIFUP(closesD1, 6, 13, 5)
+		DIFDOWND1 := IsDIFDOWN(closesD1, 6, 13, 5)
+
+		if DIFUPD1 && price > ema25D1Now {
+			MACDD1 = "BUYMACD"
+		} else if DIFDOWND1 && price < ema25D1Now {
+			MACDD1 = "SELLMACD"
 		}
 
 		switch token.Operation {
 		case "BUYLong":
-			if MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" && MACDH4 == "XBUY" {
+			if MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" && MACDH1 == "XBUY" {
 				if token.LastPushedOperation != "BUYLong" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
@@ -147,6 +166,17 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 					waitListL[sym] = t
 					waitMuL.Unlock()
 				}
+			} else if MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" && MACDH1 == "BUYMACD" {
+				// Add to 15-min monitoring pipeline
+				minMonitorMu.Lock()
+				if _, exists := minMonitorList[sym]; !exists {
+					minMonitorList[sym] = minMonitorToken{
+						Symbol:    sym,
+						Operation: token.Operation,
+						AddedAt:   time.Now(),
+					}
+				}
+				minMonitorMu.Unlock()
 			} else if mid != "UP" {
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
@@ -173,7 +203,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 			}
 		case "SELLLong":
-			if MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" && MACDH4 == "XSELL" {
+			if MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD" && MACDH1 == "XSELL" {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "SELLLong" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
@@ -224,6 +254,122 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 	}
 }
 
+func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Client, now time.Time) {
+	defer func() {
+		if r := recover(); r != nil {
+			progressLogger.Printf("[execute15MinMonitorCheck] Panic recovered: %v\n", r)
+		}
+	}()
+
+	// small delay if needed (保持你原来的 7s 也可以)
+	time.Sleep(7 * time.Second)
+
+	// Copy list quickly under lock
+	minMonitorMu.Lock()
+	monitorCopy := make(map[string]minMonitorToken, len(minMonitorList))
+	for k, v := range minMonitorList {
+		monitorCopy[k] = v
+	}
+	minMonitorMu.Unlock()
+
+	// collect changes
+	toRemove := make([]string, 0)
+	// messages to send (sym -> msg)
+	msgsToSend := make([]struct{ sym, operation string }, 0)
+
+	for sym, token := range monitorCopy {
+		// --- 获取 15m 数据（无锁） ---
+		closesM15, err := GetClosesWithFallback(client, sym, "15m")
+		if err != nil || len(closesM15) == 0 {
+			progressLogger.Printf("获取 %s (1m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		price15 := closesM15[len(closesM15)-1]
+		ma60M15 := CalculateMA(closesM15, 60)
+		XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
+		XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
+		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
+		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
+
+		validX := "XBUY"
+		if token.Operation == "SELLLong" {
+			validX = "XSELL"
+		}
+
+		MACDM15 := ""
+		if price15 > ma60M15 && XSTRONGUPM15 && DIFUPM15 {
+			MACDM15 = "XBUY"
+		} else if price15 < ma60M15 && XSTRONGDOWNM15 && DIFDOWNM15 {
+			MACDM15 = "XSELL"
+		}
+
+		// 如果触发并且还未 push
+		if MACDM15 == validX && token.LastPushedOperation != token.Operation {
+			msgsToSend = append(msgsToSend, struct{ sym, operation string }{sym, token.Operation})
+			toRemove = append(toRemove, sym) //发送一次就删除了
+		}
+
+		// --- 检查 1h 恢复/破位，以便移除 ---
+		closesH1, err := GetClosesWithFallback(client, sym, "1h")
+		if err != nil || len(closesH1) < 3 {
+			progressLogger.Printf("获取 %s (5m) 数据失败 (需要 >=3): %v\n", sym, err)
+			continue
+		}
+		pricePre := closesH1[len(closesH1)-2]
+		pricePre2 := closesH1[len(closesH1)-3]
+		_, ema25H1now := CalculateEMA(closesH1, 25)
+
+		trendEnded := (token.Operation == "BUYLong" && (pricePre < ema25H1now || pricePre2 < ema25H1now)) ||
+			(token.Operation == "SELLLong" && (pricePre > ema25H1now || pricePre2 > ema25H1now))
+
+		if trendEnded {
+			toRemove = append(toRemove, sym)
+			progressLogger.Printf("Removed %s from 15-min monitoring due to trend end\n", sym)
+			continue
+		}
+
+		// timeout
+		if now.Sub(token.AddedAt) > 12*time.Hour {
+			toRemove = append(toRemove, sym)
+			progressLogger.Printf("Removed %s from 15-min monitoring due to timeout\n", sym)
+			continue
+		}
+	}
+
+	// APPLY  removals under lock
+	if len(toRemove) > 0 {
+		minMonitorMu.Lock()
+		for _, sym := range toRemove {
+			delete(minMonitorList, sym)
+		}
+		minMonitorMu.Unlock()
+		progressLogger.Printf("15-min monitor list updated, %d coins remaining\n", len(minMonitorList))
+	}
+
+	// SEND messages (outside lock)
+	for _, m := range msgsToSend {
+		if err := sendMinMonitorBroadcast(m.sym, m.operation, wait_sucess_token, chatID); err != nil {
+			progressLogger.Printf("发送 1分钟消息失败: %s %v\n", m.sym, err)
+		}
+	}
+}
+
+// New: sendMinuteMonitorBroadcast for 15-min monitoring signals
+func sendMinMonitorBroadcast(sym string, operation, wait_sucess_token, chatID string) error {
+	emoji := "🟢"
+	action := "做多"
+	if operation == "SELLLong" {
+		emoji = "🔴"
+		action = "做空"
+	}
+	msg := fmt.Sprintf("%s%s(15m) ：%s%s", emoji, action, emoji, sym)
+	if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
+		progressLogger.Printf("发送 1分钟监控 Telegram 消息失败 (%s): %v\n", sym, err)
+		return err
+	}
+	return nil
+}
+
 // waitUntilNextHour 计算等待时间直到下一小时整点
 func waitUntilNextHour() time.Duration {
 	now := time.Now()
@@ -255,6 +401,7 @@ func WaitEnergeL(
 		}
 	}()
 
+	start15MinMonitorLoop(wait_sucess_token, chatID, client)
 	// 常规消费
 	for newResults := range resultsChanLong {
 		addToWaitListL(newResults, waiting_token, chatID)
@@ -310,4 +457,23 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 	if newAdded {
 		sendWaitListBroadcastL(now, waiting_token, chatID)
 	}
+}
+
+func start15MinMonitorLoop(wait_sucess_token, chatID string, client *futures.Client) {
+	minMonitorOnce.Do(func() {
+		go func() {
+			// 计算到下一个 15 分钟整点的时间
+			now := time.Now()
+			next := now.Truncate(15 * time.Minute).Add(15 * time.Minute)
+			time.Sleep(time.Until(next))
+
+			ticker := time.NewTicker(15 * time.Minute)
+			defer ticker.Stop()
+
+			for t := range ticker.C {
+				// 每 15 分钟整点执行一次检查
+				go executeMinMonitorCheck(wait_sucess_token, chatID, client, t)
+			}
+		}()
+	})
 }

@@ -75,7 +75,7 @@ func GetTopGainers() ([]string, []Ticker24h) {
 		return a > b
 	})
 
-	N := 7
+	N := 20
 	if len(usdtTickers) < N {
 		N = len(usdtTickers)
 	}

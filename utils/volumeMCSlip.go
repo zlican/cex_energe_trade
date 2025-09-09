@@ -15,12 +15,16 @@ func VolumeCMCCSlip(ticker24h []Ticker24h, symbols []string) []string {
 
 	// 构造一个 map，加快查询速度
 	volumeMap := make(map[string]float64, len(ticker24h))
+	priceMap := make(map[string]float64, len(ticker24h))
 	for _, t := range ticker24h {
 		vol, err := strconv.ParseFloat(t.Volume, 64)
+		pri, _ := strconv.ParseFloat(t.LastPrice, 64)
 		if err != nil {
 			continue // 忽略解析失败的
 		}
 		volumeMap[strings.ToUpper(t.Symbol)] = vol
+		priceMap[strings.ToUpper(t.Symbol)] = pri
+
 	}
 
 	// 遍历 symbols 并过滤
@@ -28,18 +32,16 @@ func VolumeCMCCSlip(ticker24h []Ticker24h, symbols []string) []string {
 		if vol, ok := volumeMap[strings.ToUpper(sym)]; ok {
 			if vol >= 10000000 { // 先过滤掉小成交量
 				cmcc, err := GetCMCCSupply(sym)
-				if err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data") {
+				if (err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data")) || (err == nil && cmcc == float64(0)) {
 					if vol > 70000000 {
 						result = append(result, sym)
 					}
+					continue
 				} else if err != nil {
 					log.Println("获取流通量错误", err)
 					continue
 				}
-				if cmcc == 0 {
-					continue
-				}
-				if vol >= cmcc/2 {
+				if vol >= cmcc*priceMap[strings.ToUpper(sym)]/2 {
 					result = append(result, sym)
 				}
 			}
@@ -75,15 +77,17 @@ func CheckVolume(ticker24h []Ticker24h, symbol string, vcount float64) bool {
 // CheckVolumeCMCC 检查单个 symbol 的成交量是否 >= CMCC/2
 func CheckVolumeCMCC(ticker24h []Ticker24h, symbol string) bool {
 	// 1. 查找 symbol 的 24H 成交量
-	var vol float64
+	var vol, pri float64
 	found := false
 	for _, t := range ticker24h {
 		if strings.ToUpper(t.Symbol) == strings.ToUpper(symbol) {
 			v, err := strconv.ParseFloat(t.Volume, 64)
+			p, err := strconv.ParseFloat(t.LastPrice, 64)
 			if err != nil {
 				return false // 解析失败直接 false
 			}
 			vol = v
+			pri = p
 			found = true
 			break
 		}
@@ -94,16 +98,15 @@ func CheckVolumeCMCC(ticker24h []Ticker24h, symbol string) bool {
 
 	// 2. 获取 CMCC 流通量
 	cmcc, err := GetCMCCSupply(symbol)
-	if err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data") {
-		return true
+	if (err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data")) || (err == nil && cmcc == float64(0)) {
+		if vol > 70000000 {
+			return true
+		}
+		return false
 	} else if err != nil {
 		log.Println("获取流通量错误", err)
 		return false
 	}
-	if cmcc == 0 {
-		return false
-	}
 
-	// 3. 判断成交量是否 >= CMCC/2
-	return vol >= cmcc/2
+	return vol >= cmcc*pri/2
 }

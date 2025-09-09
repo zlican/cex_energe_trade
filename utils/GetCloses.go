@@ -9,6 +9,9 @@ import (
 )
 
 func formatTFForExchange(tf, exchange string) string {
+	if tf == "1M" {
+		return tf
+	}
 	switch exchange {
 	case types.MarketBinance, types.MarketBitget:
 		// binance 和 bitget 全部小写
