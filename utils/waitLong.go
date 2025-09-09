@@ -89,21 +89,12 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		pricePre2 := closesD1[len(closesD1)-3]
 		DIFUP := IsDIFUP(closesD1, 6, 13, 5)
 		DIFDOWN := IsDIFDOWN(closesD1, 6, 13, 5)
-		ma60D1 := CalculateMA(closesD1, 60)
 		_, ema25D1now := CalculateEMA(closesD1, 25)
 		MACDD1 = "RANGE"
-		if price > ema25D1now && price > ma60D1 && DIFUP {
+		if price > ema25D1now && DIFUP {
 			MACDD1 = "BUYMACD"
-		} else if price < ema25D1now && price < ma60D1 && DIFDOWN {
+		} else if price < ema25D1now && DIFDOWN {
 			MACDD1 = "SELLMACD"
-		}
-		XSTRONGUPD1 := XSTRONGUP(closesD1, 6, 13, 5)
-		if XSTRONGUPD1 && price > ma60D1 && DIFUP {
-			MACDD1 = "XBUY"
-		}
-		XSTRONGDOWND1 := XSTRONGDOWN(closesD1, 6, 13, 5)
-		if XSTRONGDOWND1 && price < ma60D1 && DIFDOWN {
-			MACDD1 = "XSELL"
 		}
 
 		//趋势结束标志
@@ -134,19 +125,18 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			progressLogger.Println("获取数据失败:", err)
 		}
 		_, ema25D3Now := CalculateEMA(closesD3, 25)
-		ma60D3 := CalculateMA(closesD3, 60)
 		DIFUPD3 := IsDIFUP(closesD3, 6, 13, 5)
 		DIFDOWND3 := IsDIFDOWN(closesD3, 6, 13, 5)
 
-		if DIFUPD3 && price > ema25D3Now && price > ma60D3 {
+		if DIFUPD3 && price > ema25D3Now {
 			MACDD3 = "BUYMACD"
-		} else if DIFDOWND3 && price < ema25D3Now && price < ma60D3 {
+		} else if DIFDOWND3 && price < ema25D3Now {
 			MACDD3 = "SELLMACD"
 		}
 
 		switch token.Operation {
 		case "BUYLong":
-			if MACDD3 == "BUYMACD" && ((MACDD1 == "BUYMACD" && MACDH4 == "XBUY") || MACDD1 == "XBUY") {
+			if MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" && MACDH4 == "XBUY" {
 				if token.LastPushedOperation != "BUYLong" {
 					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
@@ -183,7 +173,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Unlock()
 			}
 		case "SELLLong":
-			if MACDD3 == "SELLMACD" && ((MACDD1 == "SELLMACD" && MACDH4 == "XSELL") || MACDD1 == "XSELL") {
+			if MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" && MACDH4 == "XSELL" {
 				// 如果上次推送过相同方向，就不推送
 				if token.LastPushedOperation != "SELLLong" {
 					msg := fmt.Sprintf("🔴做空：🔴%s", sym)

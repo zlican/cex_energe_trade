@@ -52,16 +52,23 @@ var (
 		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "BERAUSDT", "PEPEUSDT",
 		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT", "SHIBUSDT",
 		"PYTHUSDT", "BIOUSDT", "PIPPINUSDT", "OPUSDT", "IPUSDT", "PARTIUSDT", "SYRUPUSDT",
-		"PENDLEUSDT", "TRUMPOFFICIALUSDT",
+		"PENDLEUSDT", "TRUMPOFFICIALUSDT", "PUMPFUNUSDT", "OPUSDT", "RENDERUSDT", "SOLUSDT",
+		"INJUSDT", "SUIUSDT", "PENDLEUSDT", "LINEAUSDT", "JELLYJELLYUSDT",
+		"TIAUSDT", "WLFIUSDT", "ETCUSDT", "POLUSDT", "ICPUSDT", "ENSUSDT", "VETUSDT", "ALGOUSDT",
+		"RAYUSDT", "FETUSDT", "JUPUSDT", "JTOUSDT", "MKRUSDT", "FORMUSDT", "CRVUSDT", "QNTUSDT",
+		"LDOUSDT", "PYTHUSDT", "STXUSDT", "PAXGUSDT", "IMXUSDT", "GRTUSDT", "KAIAUSDT", "FLOKIUSDT",
+		"SUSDT", "SANDUSDT", "CAKEUSDT", "CFXUSDT", "WIFUSDT", "ZECUSDT", "NEXOUSDT", "THETAUSDT",
+		"ETHFIUSDT", "GALAUSDT", "IOTAUSDT", "XTZUSDT", "AUSDT", "JASMYUSDT", "DEXEUSDT", "NEOUSDT",
+		"AXSUSDT", "FLOWUSDT", "MANAUSDT", "ZROUSDT", "STRKUSDT", "RUNEUSDT", "APEUSDT", "DYDXUSDT",
+		"ZKUSDT", "EIGENUSDT", "ARUSDT", "RSRUSDT", "WUSDT", "SUNUSDT", "COMPUSDT", "CHZUSDT",
+		"EGLDUSDT", "BANUSDT", "MOVEUSDT", "GRIFFAINUSDT", "GOATUSDT", "PLUMEUSDT", "COOKIEUSDT",
+		"AIUSDT", "AVAAIUSDT", "AIXBTUSDT", "AI16ZUSDT", "UXLINKUSDT", "PEOPLEUSDT", "ORDIUSDT",
+		"INITUSDT", "PEOPLEUSDT", "GRTUSDT", "ACTUSDT", "GRIFFAINUSDT", "FLOCKUSDT", "THETAUSDT", "AVAAIUSDT",
+		"KBONKUSDT", "WCTUSDT", "MOVEUSDT", "JASMYUSDT", "HYPERUSDT", "YFIUSDT", "RSRUSDT", "AGIUSDT", "XAIUSDT",
+		"HOOKUSDT", "CGPTUSDT", "SATSUSDT", "HMSTRUSDT", "XCNUSDT", "PIXELUSDT", "ARKMUSDT", "SAHARAUSDT",
+		"WLDUSDT", "NEWTUSDT", "IOUSDT", "TAIKOUSDT", "VANAUSDT", "BRUSDT", "LAUNCHCOINUSDT", "SHELLUSDT",
 	} // 想排除的币放这里
-	slipCoinHARD = []string{"1000PEPEUSDT", "ADAUSDT",
-		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
-		"XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
-		"DOTUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "XAUTUSDT", "PAXGUSDT",
-		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT",
-		"FILUSDT", "1000BONKUSDC", "MEMEUSDT", "PENGUUSDT",
-		"ATOMUSDT", "BONKUSDT", "SHIBUSDT", "BNBUSDT", "ENAUSDT", "PUMPUSDT",
-	}
+
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
@@ -174,7 +181,7 @@ func runScan(client *futures.Client) error {
 	var results []types.CoinIndicator
 
 	// ---------- 1. 构建合并候选 ----------
-	candidates, _ := utils.GetHotCoins(slipCoinHARD)
+	candidates, _ := utils.GetHotCoins(slipCoin)
 
 	// ---------- 2. 并发分析 ----------
 	var (
@@ -255,47 +262,33 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var err error
 
 	//非理性短线建立在非理性长线之上。。。
-	var closesD3, closesD1, closesH4 []float64
-	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
+	var closesD1, closesH4 []float64
+	closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
-	priceBIG := closesD3[len(closesD3)-1]
-	_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
-	if priceBIG > EMA25D3 { //长线正
-		closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+	priceBIG := closesD1[len(closesD1)-1]
+	_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
+	DIFUPD1 := utils.IsDIFUP(closesD1, 6, 13, 5)
+	DIFDOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+	if priceBIG > EMA25D1 && DIFUPD1 {
+		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
-		_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
-		if priceBIG > EMA25D1 {
-			closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
-			if err != nil {
-				fmt.Println("获取数据失败:", err)
-			}
-			_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-			if priceBIG < EMA25H4 {
-				return types.CoinIndicator{}, false
-			}
-		} else {
+		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
+		DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
+		if priceBIG < EMA25H4 || DIFDOWNH4 {
 			return types.CoinIndicator{}, false
 		}
-	} else if priceBIG < EMA25D3 {
-		closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+	} else if priceBIG < EMA25D1 && DIFDOWND1 {
+		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
-		_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
-		if priceBIG < EMA25D1 {
-			closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
-			if err != nil {
-				fmt.Println("获取数据失败:", err)
-			}
-			_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-			if priceBIG > EMA25H4 {
-				return types.CoinIndicator{}, false
-			}
-		} else {
+		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
+		DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
+		if priceBIG > EMA25H4 || DIFUPH4 {
 			return types.CoinIndicator{}, false
 		}
 	} else {
@@ -310,13 +303,12 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	//大时趋势环境
 	price := closesH1[len(closesH1)-1]
 	_, ema25H1Now := utils.CalculateEMA(closesH1, 25)
-	ma60H1 := utils.CalculateMA(closesH1, 60)
 	DIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
-	if price > ema25H1Now && price > ma60H1 && DIFUP {
+	if price > ema25H1Now && DIFUP {
 		MACDH1 = "BUYMACD"
-	} else if price < ema25H1Now && price < ma60H1 && DIFDOWN {
+	} else if price < ema25H1Now && DIFDOWN {
 		MACDH1 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
@@ -378,6 +370,40 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	var MACDD3 string
 	var closesD3, closesD1 []float64
 	var err error
+
+	var closesW1, closesM1 []float64
+	closesM1, err = utils.GetClosesWithFallback(client, symbol, "1M")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+	priceBIG := closesM1[len(closesM1)-1]
+	_, EMA25M1 := utils.CalculateEMA(closesM1, 25)
+	DIFUPM1 := utils.IsDIFUP(closesM1, 6, 13, 5)
+	DIFDOWNM1 := utils.IsDIFDOWN(closesM1, 6, 13, 5)
+	if priceBIG > EMA25M1 && DIFUPM1 {
+		closesW1, err = utils.GetClosesWithFallback(client, symbol, "1w")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
+		}
+		_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
+		DIFDOWNW1 := utils.IsDIFDOWN(closesW1, 6, 13, 5)
+		if priceBIG < EMA25W1 || DIFDOWNW1 {
+			return types.CoinIndicator{}, false
+		}
+	} else if priceBIG < EMA25M1 && DIFDOWNM1 {
+		closesW1, err = utils.GetClosesWithFallback(client, symbol, "1W")
+		if err != nil {
+			fmt.Println("获取数据失败:", err)
+		}
+		_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
+		DIFUPW1 := utils.IsDIFUP(closesW1, 6, 13, 5)
+		if priceBIG > EMA25W1 || DIFUPW1 {
+			return types.CoinIndicator{}, false
+		}
+	} else {
+		return types.CoinIndicator{}, false
+	}
+
 	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
@@ -385,13 +411,12 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 
 	price := closesD3[len(closesD3)-1]
 	_, EMA25D3NOW := utils.CalculateEMA(closesD3, 25)
-	ma60D3 := utils.CalculateMA(closesD3, 60)
 	DIFUP := utils.IsDIFUP(closesD3, 6, 13, 5)
 	DIFDOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
-	if price > EMA25D3NOW && price > ma60D3 && DIFUP {
+	if price > EMA25D3NOW && DIFUP {
 		MACDD3 = "BUYMACD"
-	} else if price < EMA25D3NOW && price < ma60D3 && DIFDOWN {
+	} else if price < EMA25D3NOW && DIFDOWN {
 		MACDD3 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
