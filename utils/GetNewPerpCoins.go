@@ -40,7 +40,6 @@ func StartNewPereFetcher(ch chan<- []string) {
 	}()
 }
 
-// GetLatestUSDTContracts 返回最新 15 个以 USDT 结尾的合约
 func GetNewPerpCoins() []string {
 	resp, err := http.Get("https://fapi.binance.com/fapi/v1/exchangeInfo")
 	if err != nil {
@@ -68,8 +67,7 @@ func GetNewPerpCoins() []string {
 		return usdtSymbols[i].OnboardDate > usdtSymbols[j].OnboardDate
 	})
 
-	// 取前 15 个
-	limit := 15
+	limit := 10
 	if len(usdtSymbols) < limit {
 		limit = len(usdtSymbols)
 	}

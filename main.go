@@ -68,7 +68,7 @@ var (
 		"HOOKUSDT", "CGPTUSDT", "SATSUSDT", "HMSTRUSDT", "XCNUSDT", "PIXELUSDT", "ARKMUSDT", "SAHARAUSDT",
 		"WLDUSDT", "NEWTUSDT", "IOUSDT", "TAIKOUSDT", "VANAUSDT", "BRUSDT", "LAUNCHCOINUSDT", "SHELLUSDT",
 	} // 想排除的币放这里
-
+	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
@@ -216,7 +216,7 @@ func runScan(client *futures.Client) error {
 	if len(topGainers) == 0 {
 		progressLogger.Println("涨幅榜启动失败")
 	}
-	candidates, _ := utils.GetHotCoins(ticker24h, slipCoin, utils.VolumeSlip(ticker24h, newSymbols), utils.VolumeSlip(ticker24h, topGainers))
+	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, utils.VolumeCMCCSlip(ticker24h, newSymbols), utils.VolumeCMCCSlip(ticker24h, topGainers))
 
 	// ---------- 2. 并发分析 ----------
 	var (
@@ -296,6 +296,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var closesH1, closesM15 []float64
 	var err error
 
+	var BIGTrend string
 	//非理性短线建立在非理性长线之上。。。
 	var closesD1, closesH4 []float64
 	closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
@@ -316,6 +317,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 		if priceBIG < EMA25H4 || DIFDOWNH4 {
 			return types.CoinIndicator{}, false
 		}
+		BIGTrend = "BUYMACD"
 	} else if priceBIG < EMA25D1 && DIFDOWND1 {
 		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 		if err != nil {
@@ -326,6 +328,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 		if priceBIG > EMA25H4 || DIFUPH4 {
 			return types.CoinIndicator{}, false
 		}
+		BIGTrend = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
 	}
@@ -361,7 +364,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	_, EMA25M15NOW := utils.CalculateEMA(closesM15, 25)
 
 	if pricePre > EMA25M15NOW || pricePre2 > EMA25M15NOW {
-		if MACDH1 == "BUYMACD" {
+		if MACDH1 == "BUYMACD" && BIGTrend == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,
@@ -370,8 +373,8 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 				Inst:      inst,
 			}, true
 		}
-	} else if pricePre < EMA25M15NOW || pricePre2 < EMA25M15NOW {
-		if MACDH1 == "SELLMACD" {
+	} else if (pricePre < EMA25M15NOW || pricePre2 < EMA25M15NOW) && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
+		if MACDH1 == "SELLMACD" && BIGTrend == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
 				Symbol:    symbol,

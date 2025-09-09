@@ -19,7 +19,6 @@ type Ticker24h struct {
 	Volume             string `json:"quoteVolume"`
 }
 
-// StartTopGainersFetcher 每 15 分钟抓取一次 USDT 合约涨幅榜，返回前 15 名的 symbol 列表
 func StartTopGainersFetcher(ch chan<- []string, chTicker24h chan<- []Ticker24h) {
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
@@ -46,7 +45,6 @@ func StartTopGainersFetcher(ch chan<- []string, chTicker24h chan<- []Ticker24h) 
 	}()
 }
 
-// fetchTopGainers 抓取一次数据并返回前 15 个 USDT 合约
 func GetTopGainers() ([]string, []Ticker24h) {
 	resp, err := http.Get("https://fapi.binance.com/fapi/v1/ticker/24hr")
 	if err != nil {
@@ -77,8 +75,7 @@ func GetTopGainers() ([]string, []Ticker24h) {
 		return a > b
 	})
 
-	// 取前 15 个
-	N := 15
+	N := 7
 	if len(usdtTickers) < N {
 		N = len(usdtTickers)
 	}

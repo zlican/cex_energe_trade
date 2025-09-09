@@ -135,7 +135,7 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []strin
 			// Bitget 原始符号：添加 _UMCBL 后缀
 			rawSymbol := normalizedSymbol + "_UMCBL"
 
-			if !CheckVolume(ticker24h, normalizedSymbol, float64(30000000)) {
+			if !CheckVolumeCMCC(ticker24h, sym) {
 				continue
 			}
 

@@ -144,7 +144,7 @@ func IsDEADOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 // 判断DIF趋势
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(histogram) < 5 {
@@ -156,7 +156,7 @@ func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 // 判断DEA趋势
 func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(histogram) < 5 {
