@@ -219,6 +219,23 @@ func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 }
 
 //为X
+func XSTRONGUPNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
+		return false
+	}
+
+	C := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-1]
+
+	return D > 0 && D > C
+}
+
+//为X
 func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -231,6 +248,23 @@ func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 	C := histogram[len(histogram)-3]
 	D := histogram[len(histogram)-2]
+
+	return D < 0 && D < C
+}
+
+//为X
+func XSTRONGDOWNNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
+		return false
+	}
+
+	C := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-1]
 
 	return D < 0 && D < C
 }

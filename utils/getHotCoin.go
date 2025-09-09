@@ -15,7 +15,7 @@ import (
 type MarketSource string // MarketSource 定义交易所来源
 
 // GetHotCoins 获取热门交易对列表并适配为 Bitget 格式
-func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
+func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []string) ([]types.Candidate, error) {
 	const (
 		maxRetries     = 3
 		requestTimeout = 7 * time.Second
@@ -127,13 +127,17 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 		}
 
 		// 构造 Candidate 数组，适配 Bitget Ascending
-		candidates := make([]types.Candidate, 0, len(filteredSymbols)+2) // +2 for BTCUSDT and ETHUSDT
-		symbolSet := make(map[string]struct{})                           // To track symbols and avoid duplicates
+		candidates := make([]types.Candidate, 0, len(filteredSymbols)+32) // +2 for BTCUSDT and ETHUSDT
+		symbolSet := make(map[string]struct{})                            // To track symbols and avoid duplicates
 		for _, sym := range filteredSymbols {
 			// 移除符号中的 "OFFICIAL"（不区分大小写）
 			normalizedSymbol := strings.ReplaceAll(strings.ToUpper(sym), "OFFICIAL", "") + "USDT"
 			// Bitget 原始符号：添加 _UMCBL 后缀
 			rawSymbol := normalizedSymbol + "_UMCBL"
+
+			if !CheckVolume(ticker24h, normalizedSymbol, float64(30000000)) {
+				continue
+			}
 
 			candidates = append(candidates, types.Candidate{
 				Symbol:    normalizedSymbol,
@@ -151,6 +155,30 @@ func GetHotCoins(slipCoin []string) ([]types.Candidate, error) {
 					RawSymbol: mustHave + "_UMCBL",
 					Volume24h: 0.0,
 				})
+				symbolSet[mustHave] = struct{}{}
+			}
+		}
+		// 确保新币合约存在
+		for _, mustHave := range newSymbols {
+			if _, exists := symbolSet[mustHave]; !exists {
+				candidates = append(candidates, types.Candidate{
+					Symbol:    mustHave,
+					RawSymbol: mustHave + "_UMCBL",
+					Volume24h: 0.0,
+				})
+				symbolSet[mustHave] = struct{}{}
+			}
+		}
+
+		// 确保涨幅榜存在
+		for _, mustHave := range topGainers {
+			if _, exists := symbolSet[mustHave]; !exists {
+				candidates = append(candidates, types.Candidate{
+					Symbol:    mustHave,
+					RawSymbol: mustHave + "_UMCBL",
+					Volume24h: 0.0,
+				})
+				symbolSet[mustHave] = struct{}{}
 			}
 		}
 

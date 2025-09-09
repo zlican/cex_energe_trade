@@ -72,6 +72,9 @@ var (
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
+	topGainers     = []string{}                           //涨幅榜
+	newSymbols     = []string{}                           //新币合约
+	ticker24h      = []utils.Ticker24h{}                  //24H的数据
 )
 
 /* ====================== 主函数 ====================== */
@@ -112,6 +115,32 @@ func main() {
 		klinesCount,
 		long_waiting_bot,
 	)
+
+	//启动涨幅榜获取
+	chTopGainers := make(chan []string)
+	chTicker24h := make(chan []utils.Ticker24h)
+	topGainers, ticker24h = utils.GetTopGainers()
+	go utils.StartTopGainersFetcher(chTopGainers, chTicker24h)
+	go func() {
+		for Symbols := range chTopGainers {
+			topGainers = Symbols
+		}
+	}()
+	go func() {
+		for Symbols := range chTicker24h {
+			ticker24h = Symbols
+		}
+	}()
+
+	//启动新币合约获取
+	chNewPereCoins := make(chan []string)
+	newSymbols = utils.GetNewPerpCoins()
+	go utils.StartNewPereFetcher(chNewPereCoins)
+	go func() {
+		for Symbols := range chNewPereCoins {
+			newSymbols = Symbols
+		}
+	}()
 
 	//短线监控模型
 	go func() {
@@ -181,7 +210,13 @@ func runScan(client *futures.Client) error {
 	var results []types.CoinIndicator
 
 	// ---------- 1. 构建合并候选 ----------
-	candidates, _ := utils.GetHotCoins(slipCoin)
+	if len(newSymbols) == 0 {
+		progressLogger.Println("新币合约启动失败")
+	}
+	if len(topGainers) == 0 {
+		progressLogger.Println("涨幅榜启动失败")
+	}
+	candidates, _ := utils.GetHotCoins(ticker24h, slipCoin, utils.VolumeSlip(ticker24h, newSymbols), utils.VolumeSlip(ticker24h, topGainers))
 
 	// ---------- 2. 并发分析 ----------
 	var (
