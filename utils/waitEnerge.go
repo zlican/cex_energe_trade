@@ -17,13 +17,12 @@ var minuteMonitorOnce sync.Once
 
 // waitToken remains unchanged
 type waitToken struct {
-	Symbol              string
-	Inst                string
-	Operation           string
-	Status              string
-	AddedAt             time.Time
-	LastPushedOperation string
-	LastInvalidPushed   bool
+	Symbol            string
+	Inst              string
+	Operation         string
+	Status            string
+	AddedAt           time.Time
+	LastInvalidPushed bool
 }
 
 // New: minuteMonitorToken for 1-minute monitoring
@@ -73,7 +72,7 @@ func sendMinuteMonitorBroadcast(sym string, operation, wait_sucess_token, chatID
 		emoji = "🔴"
 		action = "做空"
 	}
-	msg := fmt.Sprintf("%s%s(1m) ：%s%s", emoji, action, emoji, sym)
+	msg := fmt.Sprintf("%s%s ：%s%s", emoji, action, emoji, sym)
 	if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 		progressLogger.Printf("发送 1分钟监控 Telegram 消息失败 (%s): %v\n", sym, err)
 		return err
@@ -84,38 +83,14 @@ func sendMinuteMonitorBroadcast(sym string, operation, wait_sucess_token, chatID
 // Modified: handleOperation to integrate 1-minute monitoring
 func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, MACDH1, wait_sucess_token, chatID string) bool {
 	isBuy := token.Operation == "BUY"
-	emoji := "🟢"
 	validMACD := "BUYMACD"
-	validX := "XBUY"
 	validMid := "UP"
 	if !isBuy {
-		emoji = "🔴"
 		validMACD = "SELLMACD"
-		validX = "XSELL"
 		validMid = "DOWN"
 	}
 
-	// Condition 1: Signal valid, send trading signal
-	if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validX {
-		if token.LastPushedOperation != token.Operation {
-			var action string
-			if isBuy {
-				action = "做多"
-			} else {
-				action = "做空"
-			}
-			msg := fmt.Sprintf("%s%s：%s%s", emoji, action, emoji, sym)
-			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
-				progressLogger.Printf("发送 Telegram 消息失败 (%s): %v\n", sym, err)
-				return false
-			}
-			t := waitList[sym]
-			t.LastPushedOperation = token.Operation
-			t.LastInvalidPushed = false
-			waitList[sym] = t
-		}
-		return false
-	} else if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD {
+	if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD {
 		// Add to 1-minute monitoring pipeline
 		minuteMonitorMu.Lock()
 		if _, exists := minuteMonitorList[sym]; !exists {
@@ -131,7 +106,7 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 	// Condition 2: 15-minute signal invalid, remove from waitList and minuteMonitorList
 	if mid != validMid {
 		t := waitList[sym]
-		if t.LastPushedOperation == token.Operation && !t.LastInvalidPushed {
+		if !t.LastInvalidPushed {
 			msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 			if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 				progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
@@ -150,14 +125,13 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 
 	// Condition 3: Other cases, send invalid signal and clear push state
 	t := waitList[sym]
-	if t.LastPushedOperation == token.Operation && !t.LastInvalidPushed {
+	if !t.LastInvalidPushed {
 		msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 		if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
 			progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", sym, err)
 		}
 		t.LastInvalidPushed = true
 	}
-	t.LastPushedOperation = ""
 	waitList[sym] = t
 	return false
 }
@@ -301,17 +275,15 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		price := closesM15[len(closesM15)-1]
 		pricePre := closesM15[len(closesM15)-2]
 		pricePre2 := closesM15[len(closesM15)-3]
-		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
-		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 		ema25M15, ema25M15now := CalculateEMA(closesM15, 25)
 		if len(ema25M15) == 0 {
 			progressLogger.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
 			continue
 		}
 		MACDM15 = "RANGE"
-		if price > ema25M15now && DIFUPM15 {
+		if price > ema25M15now {
 			MACDM15 = "BUYMACD"
-		} else if price < ema25M15now && DIFDOWNM15 {
+		} else if price < ema25M15now {
 			MACDM15 = "SELLMACD"
 		}
 		mid = "RANGE"
@@ -331,20 +303,11 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			continue
 		}
 		ma60M5 := CalculateMA(closesM5, 60)
-		XSTRONGUPM5 := XSTRONGUP(closesM5, 6, 13, 5)
-		XSTRONGDOWNM5 := XSTRONGDOWN(closesM5, 6, 13, 5)
-		DIFUPM5 := IsDIFUP(closesM5, 6, 13, 5)
-		DIFDOWNM5 := IsDIFDOWN(closesM5, 6, 13, 5)
 		_, ema25M5now := CalculateEMA(closesM5, 25)
-		if price > ema25M5now && price > ma60M5 && DIFUPM5 {
+		if price > ema25M5now && price > ma60M5 {
 			MACDM5 = "BUYMACD"
-		} else if price < ema25M5now && price < ma60M5 && DIFDOWNM5 {
+		} else if price < ema25M5now && price < ma60M5 {
 			MACDM5 = "SELLMACD"
-		}
-		if price > ma60M5 && XSTRONGUPM5 && DIFUPM5 {
-			MACDM5 = "XBUY"
-		} else if price < ma60M5 && XSTRONGDOWNM5 && DIFDOWNM5 {
-			MACDM5 = "XSELL"
 		}
 
 		closesH1, err := GetClosesWithFallback(client, sym, "1h")
@@ -361,11 +324,9 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			progressLogger.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
 			continue
 		}
-		DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
-		DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
-		if price > ema25H1Now && DIFUPH1 {
+		if price > ema25H1Now {
 			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now && DIFDOWNH1 {
+		} else if price < ema25H1Now {
 			MACDH1 = "SELLMACD"
 		}
 
@@ -373,7 +334,7 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			changed = true
 		}
 
-		if now.Sub(token.AddedAt) > 8*time.Hour {
+		if now.Sub(token.AddedAt) > 64*time.Hour {
 			delete(waitList, sym)
 			minuteMonitorMu.Lock()
 			delete(minuteMonitorList, sym)

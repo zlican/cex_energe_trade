@@ -14,13 +14,12 @@ import (
 var minMonitorOnce sync.Once
 
 type waitTokenL struct {
-	Symbol              string
-	Inst                string
-	Operation           string
-	Status              string
-	AddedAt             time.Time
-	LastPushedOperation string // 新增字段：记录最后一次推送的操作
-	LastInvalidPushed   bool   // 新增字段：是否已经推送过失效消息
+	Symbol            string
+	Inst              string
+	Operation         string
+	Status            string
+	AddedAt           time.Time
+	LastInvalidPushed bool // 新增字段：是否已经推送过失效消息
 }
 
 // New: minMonitorToken for 15-min monitoring
@@ -99,13 +98,11 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		price := closesH4[len(closesH4)-1]
 		pricePre := closesH4[len(closesH4)-2]
 		pricePre2 := closesH4[len(closesH4)-3]
-		DIFUP := IsDIFUP(closesH4, 6, 13, 5)
-		DIFDOWN := IsDIFDOWN(closesH4, 6, 13, 5)
 		_, ema25H4now := CalculateEMA(closesH4, 25)
 		MACDH4 = "RANGE"
-		if price > ema25H4now && DIFUP {
+		if price > ema25H4now {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now && DIFDOWN {
+		} else if price < ema25H4now {
 			MACDH4 = "SELLMACD"
 		}
 
@@ -123,20 +120,11 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		}
 		ma60H1 := CalculateMA(closesH1, 60)
 		_, EMA25H1 := CalculateEMA(closesH1, 25)
-		XSTRONGUPH1 := XSTRONGUP(closesH1, 6, 13, 5)
-		XSTRONGDOWNH1 := XSTRONGDOWN(closesH1, 6, 13, 5)
-		DIFUPH1 := IsDIFUP(closesH1, 6, 13, 5)
-		DIFDOWNH1 := IsDIFDOWN(closesH1, 6, 13, 5)
 		MACDH1 = "RANGE"
-		if price > EMA25H1 && DIFUPH1 {
+		if price > EMA25H1 && price > ma60H1 {
 			MACDH1 = "BUYMACD"
-		} else if price < EMA25H1 && DIFDOWNH1 {
+		} else if price < EMA25H1 && price < ma60H1 {
 			MACDH1 = "SELLMACD"
-		}
-		if price > ma60H1 && XSTRONGUPH1 && DIFUPH1 {
-			MACDH1 = "XBUY"
-		} else if price < ma60H1 && XSTRONGDOWNH1 && DIFDOWNH1 {
-			MACDH1 = "XSELL"
 		}
 
 		closesD1, err = GetClosesWithFallback(client, sym, "1d")
@@ -144,29 +132,16 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			progressLogger.Println("获取数据失败:", err)
 		}
 		_, ema25D1Now := CalculateEMA(closesD1, 25)
-		DIFUPD1 := IsDIFUP(closesD1, 6, 13, 5)
-		DIFDOWND1 := IsDIFDOWN(closesD1, 6, 13, 5)
 
-		if DIFUPD1 && price > ema25D1Now {
+		if price > ema25D1Now {
 			MACDD1 = "BUYMACD"
-		} else if DIFDOWND1 && price < ema25D1Now {
+		} else if price < ema25D1Now {
 			MACDD1 = "SELLMACD"
 		}
 
 		switch token.Operation {
 		case "BUYLong":
-			if MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" && MACDH1 == "XBUY" {
-				if token.LastPushedOperation != "BUYLong" {
-					msg := fmt.Sprintf("🟢做多：🟢%s ", sym)
-					telegram.SendMessageL(wait_sucess_token, chatID, msg)
-					waitMuL.Lock()
-					t := waitListL[sym]
-					t.LastPushedOperation = "BUYLong"
-					t.LastInvalidPushed = false // 重置失效推送标志
-					waitListL[sym] = t
-					waitMuL.Unlock()
-				}
-			} else if MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" && MACDH1 == "BUYMACD" {
+			if MACDD1 == "BUYMACD" && MACDH4 == "BUYMACD" && MACDH1 == "BUYMACD" {
 				// Add to 15-min monitoring pipeline
 				minMonitorMu.Lock()
 				if _, exists := minMonitorList[sym]; !exists {
@@ -181,7 +156,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]
-				if t.LastPushedOperation == "BUYLong" && !t.LastInvalidPushed {
+				if !t.LastInvalidPushed {
 					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
 					t.LastInvalidPushed = true
@@ -193,34 +168,31 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			} else {
 				waitMuL.Lock()
 				t := waitListL[sym]
-				if t.LastPushedOperation == "BUYLong" && !t.LastInvalidPushed {
+				if !t.LastInvalidPushed {
 					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
 				}
-				t.LastPushedOperation = "" // 清空，允许下次推送
 				t.LastInvalidPushed = true
 				waitListL[sym] = t
 				waitMuL.Unlock()
 			}
 		case "SELLLong":
-			if MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD" && MACDH1 == "XSELL" {
-				// 如果上次推送过相同方向，就不推送
-				if token.LastPushedOperation != "SELLLong" {
-					msg := fmt.Sprintf("🔴做空：🔴%s", sym)
-					telegram.SendMessageL(wait_sucess_token, chatID, msg)
-
-					// 更新状态
-					waitMuL.Lock()
-					t := waitListL[sym]
-					t.LastPushedOperation = "SELLLong"
-					waitListL[sym] = t
-					waitMuL.Unlock()
+			if MACDD1 == "SELLMACD" && MACDH4 == "SELLMACD" && MACDH1 == "SELLMACD" {
+				// Add to 15-min monitoring pipeline
+				minMonitorMu.Lock()
+				if _, exists := minMonitorList[sym]; !exists {
+					minMonitorList[sym] = minMonitorToken{
+						Symbol:    sym,
+						Operation: token.Operation,
+						AddedAt:   time.Now(),
+					}
 				}
+				minMonitorMu.Unlock()
 			} else if mid != "DOWN" {
 				waitMuL.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListL[sym]
-				if t.LastPushedOperation == "SELLLong" && !t.LastInvalidPushed {
+				if !t.LastInvalidPushed {
 					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
 					t.LastInvalidPushed = true
@@ -232,16 +204,15 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			} else {
 				waitMuL.Lock()
 				t := waitListL[sym]
-				if t.LastPushedOperation == "SELLLong" && !t.LastInvalidPushed {
+				if !t.LastInvalidPushed {
 					msg := fmt.Sprintf("⚠️信号失效：%s", sym)
 					telegram.SendMessageL(wait_sucess_token, chatID, msg)
 				}
-				t.LastPushedOperation = "" // 清空，允许下次推送
 				t.LastInvalidPushed = true
 				waitListL[sym] = t
 				waitMuL.Unlock()
 			}
-			if now.Sub(token.AddedAt) > 48*time.Hour {
+			if now.Sub(token.AddedAt) > 1000*time.Hour {
 				waitMuL.Lock()
 				delete(waitListL, sym)
 				waitMuL.Unlock()
