@@ -15,7 +15,7 @@ import (
 type MarketSource string // MarketSource 定义交易所来源
 
 // GetHotCoins 获取热门交易对列表并适配为 Bitget 格式
-func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []string) ([]types.Candidate, error) {
+func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGainers []string) ([]types.Candidate, error) {
 	const (
 		maxRetries     = 3
 		requestTimeout = 7 * time.Second
@@ -135,6 +135,17 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []strin
 			// Bitget 原始符号：添加 _UMCBL 后缀
 			rawSymbol := normalizedSymbol + "_UMCBL"
 
+			//移除BAN标的
+			banNow := false
+			for _, ban := range banSymbols {
+				if ban == normalizedSymbol {
+					banNow = true
+				}
+			}
+			if banNow {
+				continue
+			}
+
 			if !CheckVolumeCMCC(ticker24h, sym) {
 				continue
 			}
@@ -160,6 +171,17 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []strin
 		}
 		// 确保新币合约存在
 		for _, mustHave := range newSymbols {
+			//移除BAN标的
+			banNow := false
+			for _, ban := range banSymbols {
+				if ban == mustHave {
+					banNow = true
+				}
+			}
+			if banNow {
+				continue
+			}
+
 			if _, exists := symbolSet[mustHave]; !exists {
 				candidates = append(candidates, types.Candidate{
 					Symbol:    mustHave,
@@ -172,6 +194,16 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, newSymbols, topGainers []strin
 
 		// 确保涨幅榜存在
 		for _, mustHave := range topGainers {
+			//移除BAN标的
+			banNow := false
+			for _, ban := range banSymbols {
+				if ban == mustHave {
+					banNow = true
+				}
+			}
+			if banNow {
+				continue
+			}
 			if _, exists := symbolSet[mustHave]; !exists {
 				candidates = append(candidates, types.Candidate{
 					Symbol:    mustHave,

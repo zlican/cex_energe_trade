@@ -404,6 +404,7 @@ func WaitEnerge(
 	client *futures.Client,
 	klinesCount int,
 	waiting_token string,
+	chBanToWaitList chan []string,
 ) {
 	go func() {
 		drainResults(resultsChan, waiting_token, chatID)
@@ -416,9 +417,37 @@ func WaitEnerge(
 			go executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
-	startMinuteMonitorLoop(wait_sucess_token, chatID, client)
+	go startMinuteMonitorLoop(wait_sucess_token, chatID, client)
+	go removeBanFromWaitList(chBanToWaitList, chatID, wait_sucess_token, waiting_token)
 	for newResults := range resultsChan {
 		addToWaitList(newResults, waiting_token, chatID)
+	}
+}
+
+func removeBanFromWaitList(chBan chan []string, chatID string, wait_sucess_token, waiting_token string) {
+	for banList := range chBan {
+		changed := false
+		for _, ban := range banList {
+			_, exists := waitList[ban]
+			if exists {
+				msg := fmt.Sprintf("⚠️信号失效：%s", ban)
+				if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
+					progressLogger.Printf("发送 Telegram 失效消息失败 (%s): %v\n", ban, err)
+				}
+				waitMu.Lock()
+				delete(waitList, ban)
+				waitMu.Unlock()
+				minuteMonitorMu.Lock()
+				delete(minuteMonitorList, ban)
+				minuteMonitorMu.Unlock()
+
+				changed = true
+			}
+		}
+		if changed {
+			now := time.Now()
+			sendWaitListBroadcast(now, waiting_token, chatID)
+		}
 	}
 }
 

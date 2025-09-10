@@ -74,6 +74,7 @@ var (
 	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
 	topGainers     = []string{}                           //涨幅榜
 	newSymbols     = []string{}                           //新币合约
+	banSymbols     = []string{}                           //封禁区
 	ticker24h      = []utils.Ticker24h{}                  //24H的数据
 )
 
@@ -96,25 +97,6 @@ func main() {
 
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
-
-	// 首次 runScan 成功后再启动等待区
-	go utils.WaitEnerge(
-		waitChan,
-		wait_energe_botToken,
-		chatID,
-		client,
-		klinesCount,
-		energe_waiting_botToken,
-	)
-
-	go utils.WaitEnergeL(
-		waitChanLong,
-		long_energe_bot,
-		chatID,
-		client,
-		klinesCount,
-		long_waiting_bot,
-	)
 
 	//启动涨幅榜获取
 	chTopGainers := make(chan []string)
@@ -142,6 +124,37 @@ func main() {
 			newSymbols = Symbols
 		}
 	}()
+
+	//获取封禁区
+	chBanList := make(chan []string, 10)
+	chBanListToWaitList := make(chan []string, 10)
+	banSymbols = utils.GetBanList()
+	go utils.StartBanListFetcher(chBanList, chBanListToWaitList)
+	go func() {
+		for Symbols := range chBanList {
+			banSymbols = Symbols
+		}
+	}()
+
+	// 首次 runScan 成功后再启动等待区
+	go utils.WaitEnerge(
+		waitChan,
+		wait_energe_botToken,
+		chatID,
+		client,
+		klinesCount,
+		energe_waiting_botToken,
+		chBanListToWaitList,
+	)
+
+	go utils.WaitEnergeL(
+		waitChanLong,
+		long_energe_bot,
+		chatID,
+		client,
+		klinesCount,
+		long_waiting_bot,
+	)
 
 	//短线监控模型
 	go func() {
@@ -217,7 +230,7 @@ func runScan(client *futures.Client) error {
 	if len(topGainers) == 0 {
 		progressLogger.Println("涨幅榜启动失败")
 	}
-	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, utils.VolumeCMCCSlip(ticker24h, newSymbols), utils.VolumeCMCCSlip(ticker24h, topGainers))
+	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols, utils.VolumeCMCCSlip(ticker24h, newSymbols), utils.VolumeCMCCSlip(ticker24h, topGainers))
 
 	// ---------- 2. 并发分析 ----------
 	var (
