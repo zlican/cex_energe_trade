@@ -306,27 +306,23 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	}
 	priceBIG := closesD1[len(closesD1)-1]
 	_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
-	DIFUPD1 := utils.IsDIFUP(closesD1, 6, 13, 5)
-	DIFDOWND1 := utils.IsDIFDOWN(closesD1, 6, 13, 5)
-	if priceBIG > EMA25D1 && DIFUPD1 {
+	if priceBIG > EMA25D1 {
 		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
 		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-		DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
-		if priceBIG < EMA25H4 || DIFDOWNH4 {
+		if priceBIG < EMA25H4 {
 			return types.CoinIndicator{}, false
 		}
 		BIGTrend = "BUYMACD"
-	} else if priceBIG < EMA25D1 && DIFDOWND1 {
+	} else if priceBIG < EMA25D1 {
 		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
 		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-		DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
-		if priceBIG > EMA25H4 || DIFUPH4 {
+		if priceBIG > EMA25H4 {
 			return types.CoinIndicator{}, false
 		}
 		BIGTrend = "SELLMACD"
@@ -419,27 +415,23 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	}
 	priceBIG := closesW1[len(closesW1)-1]
 	_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
-	DIFUPW1 := utils.IsDIFUP(closesW1, 6, 13, 5)
-	DIFDOWNW1 := utils.IsDIFDOWN(closesW1, 6, 13, 5)
-	if priceBIG > EMA25W1 && DIFUPW1 {
+	if priceBIG > EMA25W1 {
 		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
 		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
-		DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
-		if priceBIG < EMA25D3 || DIFDOWND3 {
+		if priceBIG < EMA25D3 {
 			return types.CoinIndicator{}, false
 		}
 		BIGTrend = "BUYMACD"
-	} else if priceBIG < EMA25W1 && DIFDOWNW1 {
+	} else if priceBIG < EMA25W1 {
 		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 		if err != nil {
 			fmt.Println("获取数据失败:", err)
 		}
 		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
-		DIFUPD3 := utils.IsDIFUP(closesD3, 6, 13, 5)
-		if priceBIG > EMA25D3 || DIFUPD3 {
+		if priceBIG > EMA25D3 {
 			return types.CoinIndicator{}, false
 		}
 		BIGTrend = "SELLMACD"
