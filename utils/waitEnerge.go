@@ -104,6 +104,7 @@ func handleOperation(sym string, token waitToken, mid string, MACDM5, MACDM15, M
 			}
 		}
 		minuteMonitorMu.Unlock()
+		return false
 	}
 
 	// Condition 2: 15-minute signal invalid, remove from waitList and minuteMonitorList
