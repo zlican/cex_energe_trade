@@ -338,6 +338,11 @@ func sendMinMonitorBroadcast(sym string, operation, wait_sucess_token, chatID st
 		progressLogger.Printf("发送 1分钟监控 Telegram 消息失败 (%s): %v\n", sym, err)
 		return err
 	}
+	waitMuL.Lock()
+	t := waitListL[sym]
+	t.LastInvalidPushed = false
+	waitListL[sym] = t
+	waitMuL.Unlock()
 	return nil
 }
 
@@ -404,21 +409,23 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 		exist, exists := waitListL[coin.Symbol]
 		if !exists {
 			waitListL[coin.Symbol] = waitTokenL{
-				Symbol:    coin.Symbol,
-				Inst:      coin.Inst,
-				Operation: coin.Operation,
-				Status:    coin.Status,
-				AddedAt:   now,
+				Symbol:            coin.Symbol,
+				Inst:              coin.Inst,
+				Operation:         coin.Operation,
+				Status:            coin.Status,
+				AddedAt:           now,
+				LastInvalidPushed: true,
 			}
 			newAdded = true
 		}
 		if exists && exist.Operation != coin.Operation {
 			waitListL[coin.Symbol] = waitTokenL{
-				Symbol:    coin.Symbol,
-				Inst:      coin.Inst,
-				Operation: coin.Operation,
-				Status:    coin.Status,
-				AddedAt:   now,
+				Symbol:            coin.Symbol,
+				Inst:              coin.Inst,
+				Operation:         coin.Operation,
+				Status:            coin.Status,
+				AddedAt:           now,
+				LastInvalidPushed: true,
 			}
 			newAdded = true
 		}
