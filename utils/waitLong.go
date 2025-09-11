@@ -334,7 +334,7 @@ func sendMinMonitorBroadcast(sym string, operation, wait_sucess_token, chatID st
 		action = "做空"
 	}
 	msg := fmt.Sprintf("%s%s(15m) ：%s%s", emoji, action, emoji, sym)
-	if err := telegram.SendMessage(wait_sucess_token, chatID, msg); err != nil {
+	if err := telegram.SendMessageL(wait_sucess_token, chatID, msg); err != nil {
 		progressLogger.Printf("发送 1分钟监控 Telegram 消息失败 (%s): %v\n", sym, err)
 		return err
 	}
