@@ -268,3 +268,59 @@ func XSTRONGDOWNNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod 
 
 	return D < 0 && D < C
 }
+
+//为正
+func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
+		return false
+	}
+
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
+
+	//当下绿（确定性）
+	if E > 0 {
+		return true
+	}
+
+	//前者大（确定性）
+	if D > C {
+		return true
+	}
+
+	return false
+}
+
+//为负
+func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < slowPeriod+signalPeriod+1 {
+		return false
+	}
+
+	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 {
+		return false
+	}
+
+	C := histogram[len(histogram)-3]
+	D := histogram[len(histogram)-2]
+	E := histogram[len(histogram)-1]
+
+	//当下红（确定性）
+	if E < 0 {
+		return true
+	}
+
+	//前者小（确定性）
+	if D < C {
+		return true
+	}
+
+	return false
+}

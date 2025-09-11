@@ -308,9 +308,11 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		}
 		ma60M5 := CalculateMA(closesM5, 60)
 		_, ema25M5now := CalculateEMA(closesM5, 25)
-		if price > ema25M5now && price > ma60M5 {
+		MACDSmallUP := IsSmallTFUP(closesM5, 6, 13, 5)
+		MACDsmallDOWN := IsSmallTFDOWN(closesM5, 6, 13, 5)
+		if price > ema25M5now && price > ma60M5 && MACDSmallUP {
 			MACDM5 = "BUYMACD"
-		} else if price < ema25M5now && price < ma60M5 {
+		} else if price < ema25M5now && price < ma60M5 && MACDsmallDOWN {
 			MACDM5 = "SELLMACD"
 		}
 

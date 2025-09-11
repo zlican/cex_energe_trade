@@ -120,10 +120,12 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		}
 		ma60H1 := CalculateMA(closesH1, 60)
 		_, EMA25H1 := CalculateEMA(closesH1, 25)
+		MACDSmallUP := IsSmallTFUP(closesH1, 6, 13, 5)
+		MACDSmallDOWN := IsSmallTFDOWN(closesH1, 6, 13, 5)
 		MACDH1 = "RANGE"
-		if price > EMA25H1 && price > ma60H1 {
+		if price > EMA25H1 && price > ma60H1 && MACDSmallUP {
 			MACDH1 = "BUYMACD"
-		} else if price < EMA25H1 && price < ma60H1 {
+		} else if price < EMA25H1 && price < ma60H1 && MACDSmallDOWN {
 			MACDH1 = "SELLMACD"
 		}
 
