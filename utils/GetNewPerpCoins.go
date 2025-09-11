@@ -67,7 +67,7 @@ func GetNewPerpCoins() []string {
 		return usdtSymbols[i].OnboardDate > usdtSymbols[j].OnboardDate
 	})
 
-	limit := 20
+	limit := 7
 	if len(usdtSymbols) < limit {
 		limit = len(usdtSymbols)
 	}

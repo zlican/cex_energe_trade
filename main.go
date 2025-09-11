@@ -230,7 +230,16 @@ func runScan(client *futures.Client) error {
 	if len(topGainers) == 0 {
 		progressLogger.Println("涨幅榜启动失败")
 	}
-	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols, utils.VolumeCMCCSlip(ticker24h, newSymbols), utils.VolumeCMCCSlip(ticker24h, topGainers))
+
+	CGTopGainers, err := utils.GetCGTopGainers()
+	if err != nil {
+		fmt.Println("get CG topgainers", err)
+	}
+	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols,
+		utils.VolumeCMCCSlip(ticker24h, newSymbols),
+		utils.VolumeCMCCSlip(ticker24h, topGainers),
+		utils.VolumeCMCCSlip(ticker24h, CGTopGainers),
+	)
 
 	// ---------- 2. 并发分析 ----------
 	var (

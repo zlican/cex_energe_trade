@@ -41,7 +41,7 @@ func VolumeCMCCSlip(ticker24h []Ticker24h, symbols []string) []string {
 					log.Println("获取流通量错误", err)
 					continue
 				}
-				if vol >= cmcc*priceMap[strings.ToUpper(sym)]/2 {
+				if vol >= cmcc*priceMap[strings.ToUpper(sym)]/3 {
 					result = append(result, sym)
 				}
 			}
@@ -108,5 +108,5 @@ func CheckVolumeCMCC(ticker24h []Ticker24h, symbol string) bool {
 		return false
 	}
 
-	return vol >= cmcc*pri/2
+	return vol >= cmcc*pri/3
 }
