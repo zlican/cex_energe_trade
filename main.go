@@ -282,7 +282,7 @@ func runScan(client *futures.Client) error {
 func runScanLong(client *futures.Client) error {
 
 	//Long代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "ETHBTC", "PAXGUSDT", "HYPEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "HYPEUSDT", "ETHBTC", "PAXGUSDT"}
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
 		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym})

@@ -127,8 +127,8 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 		}
 
 		// 构造 Candidate 数组，适配 Bitget Ascending
-		candidates := make([]types.Candidate, 0, len(filteredSymbols)+32) // +2 for BTCUSDT and ETHUSDT
-		symbolSet := make(map[string]struct{})                            // To track symbols and avoid duplicates
+		candidates := make([]types.Candidate, 0, len(filteredSymbols)+30)
+		symbolSet := make(map[string]struct{}) // To track symbols and avoid duplicates
 		for _, sym := range filteredSymbols {
 			// 移除符号中的 "OFFICIAL"（不区分大小写）
 			normalizedSymbol := strings.ReplaceAll(strings.ToUpper(sym), "OFFICIAL", "") + "USDT"
@@ -158,17 +158,6 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 			symbolSet[normalizedSymbol] = struct{}{} // Track added symbols
 		}
 
-		// 确保 BESH 存在
-		for _, mustHave := range []string{"BTCUSDT", "ETHUSDT"} {
-			if _, exists := symbolSet[mustHave]; !exists {
-				candidates = append(candidates, types.Candidate{
-					Symbol:    mustHave,
-					RawSymbol: mustHave + "_UMCBL",
-					Volume24h: 0.0,
-				})
-				symbolSet[mustHave] = struct{}{}
-			}
-		}
 		// 确保新币合约存在
 		for _, mustHave := range newSymbols {
 			//移除BAN标的
@@ -214,7 +203,7 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 			}
 		}
 
-		// 确保涨幅榜存在
+		// 确保CG涨幅榜存在
 		for _, mustHave := range CGTopGainers {
 			//移除BAN标的
 			banNow := false
