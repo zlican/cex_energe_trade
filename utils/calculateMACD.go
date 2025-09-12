@@ -47,12 +47,12 @@ func IsGoldenUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 //为正
 func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(histogram) < 2 {
-		return false
+		return true
 	}
 	D := histogram[len(histogram)-2]
 	E := histogram[len(histogram)-1]
@@ -98,12 +98,12 @@ func IsDeadDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 // 判断是否为负
 func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(histogram) < 2 {
-		return false
+		return true
 	}
 	D := histogram[len(histogram)-2]
 	E := histogram[len(histogram)-1]

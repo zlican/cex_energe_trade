@@ -281,8 +281,27 @@ func runScan(client *futures.Client) error {
 
 func runScanLong(client *futures.Client) error {
 
+	// ---------- 1. 构建合并候选 ----------
+	if len(newSymbols) == 0 {
+		progressLogger.Println("新币合约启动失败")
+	}
+	if len(topGainers) == 0 {
+		progressLogger.Println("涨幅榜启动失败")
+	}
+
+	CGTopGainers, err := utils.GetCGTopGainers()
+	if err != nil {
+		fmt.Println("get CG topgainers", err)
+	}
+	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols,
+		utils.VolumeCMCCSlip(ticker24h, newSymbols),
+		utils.VolumeCMCCSlip(ticker24h, topGainers),
+		utils.VolumeCMCCSlip(ticker24h, CGTopGainers),
+	)
+
 	//Long代币列表
 	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "HYPEUSDT", "ETHBTC", "PAXGUSDT"}
+
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
 		ind, ok := analyseSymbolLong(client, types.Candidate{Symbol: sym})
@@ -291,6 +310,13 @@ func runScanLong(client *futures.Client) error {
 		}
 	}
 
+	// 再分析 candidates
+	for _, cand := range candidates {
+		ind, ok := analyseSymbolLong(client, cand)
+		if ok {
+			resultsLong = append(resultsLong, ind)
+		}
+	}
 	// ---------- 3. 发送等待区 channel ----------
 	select {
 	case waitChanLong <- resultsLong:

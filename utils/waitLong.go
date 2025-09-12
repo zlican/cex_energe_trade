@@ -74,7 +74,7 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			// 你也可以根据需求记录到日志文件或监控系统
 		}
 	}()
-	time.Sleep(7 * time.Second) // 保持你原来的延迟
+	time.Sleep(10 * time.Second) // 保持你原来的延迟
 
 	var changed bool // 是否发生了删除
 
