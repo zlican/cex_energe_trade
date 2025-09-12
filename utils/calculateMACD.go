@@ -16,17 +16,18 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-//为正
+//为绿柱 + 红UP
 func IsGoldenUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 {
-		return false
+	if len(histogram) < 3 {
+		return true
 	}
 
+	C := histogram[len(histogram)-3]
 	D := histogram[len(histogram)-2]
 	E := histogram[len(histogram)-1]
 
@@ -37,14 +38,14 @@ func IsGoldenUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 		return true
 	}
 
-	if D < 0 && E < 0 && D < E {
+	if D > C {
 		return true
 	}
 
 	return false
 }
 
-//为正
+//为绿柱
 func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -67,17 +68,17 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	return false
 }
 
-//为负
+//为红柱 + 绿DOWN
 func IsDeadDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return false
+		return true
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 {
-		return false
+	if len(histogram) < 3 {
+		return true
 	}
-
+	C := histogram[len(histogram)-3]
 	D := histogram[len(histogram)-2]
 	E := histogram[len(histogram)-1]
 
@@ -88,14 +89,14 @@ func IsDeadDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int)
 		return true
 	}
 
-	if D > 0 && E > 0 && D > E {
+	if D < C {
 		return true
 	}
 
 	return false
 }
 
-// 判断是否为负
+// 为红柱
 func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -117,7 +118,7 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	return false
 }
 
-// 判断DEA趋势
+// DEA UP
 func IsDEAUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -129,7 +130,7 @@ func IsDEAUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 	return DEA[len(DEA)-1] > 0
 }
 
-// 判断DEA趋势
+// DEA DOWN
 func IsDEADOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -141,7 +142,7 @@ func IsDEADOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DEA[len(DEA)-1] < 0
 }
 
-// 判断DIF趋势
+// DIF UP
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -153,7 +154,7 @@ func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 	return DIF[len(DIF)-1] > 0
 }
 
-// 判断DEA趋势
+// DEA DOWN
 func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -165,7 +166,7 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DIF[len(DIF)-1] < 0
 }
 
-//为正
+//升
 func UPUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -183,7 +184,7 @@ func UPUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool 
 	return E > D || D > C
 }
 
-//为负
+//降
 func DownDown(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -201,7 +202,7 @@ func DownDown(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	return E < D || D < C
 }
 
-//为X
+//强绿升
 func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -218,7 +219,7 @@ func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return D > 0 && D > C
 }
 
-//为X
+//强绿升
 func XSTRONGUPNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -235,7 +236,7 @@ func XSTRONGUPNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod in
 	return D > 0 && D > C
 }
 
-//为X
+//强红降
 func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false
@@ -252,7 +253,7 @@ func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	return D < 0 && D < C
 }
 
-//为X
+//强红降
 func XSTRONGDOWNNow(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return false

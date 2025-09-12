@@ -300,7 +300,7 @@ func runScanLong(client *futures.Client) error {
 	)
 
 	//Long代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "HYPEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT"}
 
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
@@ -346,33 +346,18 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	var err error
 
 	var BIGTrend string
-	//非理性短线建立在非理性长线之上。。。
-	var closesD1, closesH4 []float64
-	closesD1, err = utils.GetClosesWithFallback(client, symbol, "1d")
+	var closesH4 []float64
+	closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
-	priceBIG := closesD1[len(closesD1)-1]
-	_, EMA25D1 := utils.CalculateEMA(closesD1, 25)
-	if priceBIG > EMA25D1 {
-		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
-		}
-		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-		if priceBIG < EMA25H4 {
-			return types.CoinIndicator{}, false
-		}
+	priceBIG := closesH4[len(closesH4)-1]
+	_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
+	BIGMACDUP := utils.IsGoldenUP(closesH4, 6, 13, 5)
+	BIGMACDDOWN := utils.IsDeadDOWN(closesH4, 6, 13, 5)
+	if priceBIG > EMA25H4 && BIGMACDUP {
 		BIGTrend = "BUYMACD"
-	} else if priceBIG < EMA25D1 {
-		closesH4, err = utils.GetClosesWithFallback(client, symbol, "4h")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
-		}
-		_, EMA25H4 := utils.CalculateEMA(closesH4, 25)
-		if priceBIG > EMA25H4 {
-			return types.CoinIndicator{}, false
-		}
+	} else if priceBIG < EMA25H4 && BIGMACDDOWN {
 		BIGTrend = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
@@ -436,50 +421,31 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 /* ====================== 单币分析 ====================== */
 
 func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
-	//BIGTR: 3D,1W
-	//大时1D，中时4H，小时1H
-	// 使用 defer 捕获可能的 panic
 	defer func() {
 		if r := recover(); r != nil {
 			// 记录 panic 信息，方便调试
 			fmt.Printf("[analyseSymbolLong] Panic recovered for symbol %s: %v\n", c.Symbol, r)
-			// 返回默认值，表示处理失败
-			// 你也可以根据需求记录到日志文件或监控系统
 		}
 	}()
 	symbol := c.Symbol
 	var inst string
 
 	var MACDD1 string
-	var closesW1, closesD3, closesD1, closesH4 []float64
+	var closesD3, closesD1, closesH4 []float64
 	var err error
 	var BIGTrend string
 
-	closesW1, err = utils.GetClosesWithFallback(client, symbol, "1w")
+	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
 	if err != nil {
 		fmt.Println("获取数据失败:", err)
 	}
-	priceBIG := closesW1[len(closesW1)-1]
-	_, EMA25W1 := utils.CalculateEMA(closesW1, 25)
-	if priceBIG > EMA25W1 {
-		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
-		}
-		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
-		if priceBIG < EMA25D3 {
-			return types.CoinIndicator{}, false
-		}
+	priceBIG := closesD3[len(closesD3)-1]
+	_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
+	BIGMACDUP := utils.IsGoldenUP(closesD3, 6, 13, 5)
+	BIGMACDDOWN := utils.IsDeadDOWN(closesD3, 6, 13, 5)
+	if priceBIG > EMA25D3 && BIGMACDUP {
 		BIGTrend = "BUYMACD"
-	} else if priceBIG < EMA25W1 {
-		closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
-		if err != nil {
-			fmt.Println("获取数据失败:", err)
-		}
-		_, EMA25D3 := utils.CalculateEMA(closesD3, 25)
-		if priceBIG > EMA25D3 {
-			return types.CoinIndicator{}, false
-		}
+	} else if priceBIG < EMA25D3 && BIGMACDDOWN {
 		BIGTrend = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
@@ -519,7 +485,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if pricePre < EMA25H4NOW || pricePre2 < EMA25H4NOW {
+	} else if (pricePre < EMA25H4NOW || pricePre2 < EMA25H4NOW) && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
 		if MACDD1 == "SELLMACD" && BIGTrend == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
