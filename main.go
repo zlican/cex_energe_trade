@@ -370,11 +370,13 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	}
 	//大时趋势环境
 	price := closesH1[len(closesH1)-1]
+	BIGDIFUP := utils.IsDIFUP(closesH1, 6, 13, 5)
+	BIGDIFDOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 	_, ema25H1Now := utils.CalculateEMA(closesH1, 25)
 
-	if price > ema25H1Now {
+	if price > ema25H1Now && BIGDIFUP {
 		MACDH1 = "BUYMACD"
-	} else if price < ema25H1Now {
+	} else if price < ema25H1Now && BIGDIFDOWN {
 		MACDH1 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
@@ -457,11 +459,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	}
 
 	price := closesD1[len(closesD1)-1]
+	BIGDIFUP := utils.IsDIFUP(closesD1, 6, 13, 5)
+	BIGDIFDOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 	_, EMA25D1NOW := utils.CalculateEMA(closesD1, 25)
 
-	if price > EMA25D1NOW {
+	if price > EMA25D1NOW && BIGDIFUP {
 		MACDD1 = "BUYMACD"
-	} else if price < EMA25D1NOW {
+	} else if price < EMA25D1NOW && BIGDIFDOWN {
 		MACDD1 = "SELLMACD"
 	} else {
 		return types.CoinIndicator{}, false
