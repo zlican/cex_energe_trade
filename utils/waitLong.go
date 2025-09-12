@@ -24,10 +24,9 @@ type waitTokenL struct {
 
 // New: minMonitorToken for 15-min monitoring
 type minMonitorToken struct {
-	Symbol              string
-	Operation           string
-	AddedAt             time.Time
-	LastPushedOperation string // Tracks last pushed operation in 15-min monitoring
+	Symbol    string
+	Operation string
+	AddedAt   time.Time
 }
 
 var waitMuL sync.Mutex
@@ -272,6 +271,11 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 			validX = "XSELL"
 		}
 
+		validMACD := "BUYMACD"
+		if token.Operation == "SELLLong" {
+			validMACD = "SELLMACD"
+		}
+
 		MACDM15 := ""
 		if price15 > ma60M15 && XSTRONGUPM15 && DIFUPM15 {
 			MACDM15 = "XBUY"
@@ -279,33 +283,37 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 			MACDM15 = "XSELL"
 		}
 
-		// 如果触发并且还未 push
-		if MACDM15 == validX && token.LastPushedOperation != token.Operation {
+		// --- 获取 15m 数据（无锁） ---
+		closesH4, err := GetClosesWithFallback(client, sym, "4H")
+		if err != nil || len(closesH4) == 0 {
+			progressLogger.Printf("获取 %s (1m) 数据失败: %v\n", sym, err)
+			continue
+		}
+		price := closesH4[len(closesH4)-1]
+
+		isGolden := IsGolden(closesH4, 6, 13, 5)
+		isDead := IsDead(closesH4, 6, 13, 5)
+		_, ema25H4now := CalculateEMA(closesH4, 25)
+		MACDH4 := "RANGE"
+		if price > ema25H4now && isGolden {
+			MACDH4 = "BUYMACD"
+		} else if price < ema25H4now && isDead {
+			MACDH4 = "SELLMACD"
+		}
+		// 触发
+		if MACDM15 == validX && MACDH4 == validMACD {
 			msgsToSend = append(msgsToSend, struct{ sym, operation string }{sym, token.Operation})
 			toRemove = append(toRemove, sym) //发送一次就删除了
 		}
 
-		// --- 检查 1h 恢复/破位，以便移除 ---
-		closesH1, err := GetClosesWithFallback(client, sym, "1h")
-		if err != nil || len(closesH1) < 3 {
-			progressLogger.Printf("获取 %s (5m) 数据失败 (需要 >=3): %v\n", sym, err)
-			continue
-		}
-		pricePre := closesH1[len(closesH1)-2]
-		pricePre2 := closesH1[len(closesH1)-3]
-		_, ema25H1now := CalculateEMA(closesH1, 25)
-
-		trendEnded := (token.Operation == "BUYLong" && (pricePre < ema25H1now || pricePre2 < ema25H1now)) ||
-			(token.Operation == "SELLLong" && (pricePre > ema25H1now || pricePre2 > ema25H1now))
-
-		if trendEnded {
+		if MACDH4 != validMACD {
 			toRemove = append(toRemove, sym)
 			progressLogger.Printf("Removed %s from 15-min monitoring due to trend end\n", sym)
 			continue
 		}
 
 		// timeout
-		if now.Sub(token.AddedAt) > 12*time.Hour {
+		if now.Sub(token.AddedAt) > 120*time.Hour {
 			toRemove = append(toRemove, sym)
 			progressLogger.Printf("Removed %s from 15-min monitoring due to timeout\n", sym)
 			continue
