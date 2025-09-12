@@ -279,15 +279,17 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		price := closesM15[len(closesM15)-1]
 		pricePre := closesM15[len(closesM15)-2]
 		pricePre2 := closesM15[len(closesM15)-3]
+		isGolden := IsGolden(closesM15, 6, 13, 5)
+		isDead := IsDead(closesM15, 6, 13, 5)
 		ema25M15, ema25M15now := CalculateEMA(closesM15, 25)
 		if len(ema25M15) == 0 {
 			progressLogger.Printf("计算 %s (15m) EMA25 失败: 空数组\n", sym)
 			continue
 		}
 		MACDM15 = "RANGE"
-		if price > ema25M15now {
+		if price > ema25M15now && isGolden {
 			MACDM15 = "BUYMACD"
-		} else if price < ema25M15now {
+		} else if price < ema25M15now && isDead {
 			MACDM15 = "SELLMACD"
 		}
 		mid = "RANGE"

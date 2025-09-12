@@ -98,11 +98,14 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		price := closesH4[len(closesH4)-1]
 		pricePre := closesH4[len(closesH4)-2]
 		pricePre2 := closesH4[len(closesH4)-3]
+
+		isGolden := IsGolden(closesH4, 6, 13, 5)
+		isDead := IsDead(closesH4, 6, 13, 5)
 		_, ema25H4now := CalculateEMA(closesH4, 25)
 		MACDH4 = "RANGE"
-		if price > ema25H4now {
+		if price > ema25H4now && isGolden {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now {
+		} else if price < ema25H4now && isDead {
 			MACDH4 = "SELLMACD"
 		}
 
