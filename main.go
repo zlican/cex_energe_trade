@@ -40,6 +40,10 @@ var (
 	long_waiting_bot          = "8236814626:AAHFq7SmeJ16Lvr1e0c_eoJSTLfqDtSqFCA" //长线等待区
 	chatID                    = "6074996357"
 
+	smallVol = 20000000   //2千万
+	longVol  = 300000000  //3亿
+	mainVol  = 4800000000 // 48亿
+
 	slipCoin = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "AGIXUSDT",
 		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
 		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
@@ -300,7 +304,7 @@ func runScanLong(client *futures.Client) error {
 	)
 
 	//Long代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT", "DOGEUSDT"}
 
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
@@ -340,6 +344,13 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 		}
 	}()
 	symbol := c.Symbol
+
+	//短线过滤2千万
+	volbool := utils.CheckVolume(ticker24h, symbol, float64(smallVol))
+	if !volbool {
+		return types.CoinIndicator{}, false
+	}
+
 	var inst string
 	var MACDH1 string
 	var closesH1, closesM15 []float64
@@ -430,6 +441,13 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 		}
 	}()
 	symbol := c.Symbol
+
+	//长线过滤3亿
+	volbool := utils.CheckVolume(ticker24h, symbol, float64(longVol))
+	if !volbool {
+		return types.CoinIndicator{}, false
+	}
+
 	var inst string
 
 	var MACDD1 string
