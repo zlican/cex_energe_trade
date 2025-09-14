@@ -147,8 +147,8 @@ func executeMinuteMonitorCheck(wait_sucess_token, chatID string, client *futures
 		}
 	}()
 
-	// small delay if needed (保持你原来的 7s 也可以)
-	time.Sleep(7 * time.Second)
+	// small delay if needed (保持你原来的 10s 也可以)
+	time.Sleep(10 * time.Second)
 
 	// Copy list quickly under lock
 	minuteMonitorMu.Lock()
@@ -340,9 +340,11 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 			progressLogger.Printf("计算 %s (1h) EMA25 失败: 空数组\n", sym)
 			continue
 		}
-		if price > ema25H1Now {
+		DIFH1UP := IsDIFUP(closesH1, 6, 13, 5)
+		DIFH1DOWN := IsDIFDOWN(closesH1, 6, 13, 5)
+		if price > ema25H1Now && DIFH1UP {
 			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now {
+		} else if price < ema25H1Now && DIFH1DOWN {
 			MACDH1 = "SELLMACD"
 		}
 

@@ -27,55 +27,27 @@ import (
 /* ====================== 结构体 & 全局 ====================== */
 
 var (
-	apiKey                    = ""
-	secretKey                 = ""
-	proxyURL                  = "http://127.0.0.1:10809"
-	klinesCount               = 200
-	maxWorkers                = 20
-	botToken                  = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //二级印钞
-	wait_energe_botToken      = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //播报成功（合并右侧回响）
-	energe_waiting_botToken   = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //等待区bot
-	high_profit_srsi_botToken = "7924943629:AAEontupSGOxEm4TPJE6tc-CSzTAqlzwQNY" //极品左侧抄底bot
-	long_energe_bot           = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //长线模型
-	long_waiting_bot          = "8236814626:AAHFq7SmeJ16Lvr1e0c_eoJSTLfqDtSqFCA" //长线等待区
-	chatID                    = "6074996357"
+	apiKey                  = ""
+	secretKey               = ""
+	proxyURL                = "http://127.0.0.1:10809"
+	klinesCount             = 200
+	maxWorkers              = 20
+	wait_energe_botToken    = "8040107823:AAHC_qu5cguJf9BG4NDiUB_nwpgF-bPkJAg" //CEX短线
+	energe_waiting_botToken = "7417712542:AAGjCOMeFFFuNCo5vNBWDYJqGs0Qm2ifwmY" //CEX短线等待
+	long_energe_bot         = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //CEX中线
+	long_waiting_bot        = "8236814626:AAHFq7SmeJ16Lvr1e0c_eoJSTLfqDtSqFCA" //CEX中线等待
+	CEX_BIG_BOT             = "8433752576:AAEKwIwcJFgUfT2mAzYXe4JrhEEYEEfyOoE" //CEX长线
+	CEX_BIG_WAIT_BOT        = "8274690252:AAHjGJQt61NKPlzY20Q60zCFofQ1Q1DDL_8" //CEX长线等待
+	chatID                  = "6074996357"
 
-	smallVol = 20000000   //2千万
-	longVol  = 300000000  //3亿
-	mainVol  = 4800000000 // 48亿
+	smallVol = 20000000  //2千万
+	longVol  = 300000000 //3亿
 
-	slipCoin = []string{"XRPUSDT", "1000PEPEUSDT", "ADAUSDT", "BNBUSDT", "AGIXUSDT",
-		"LINKUSDT", "FARTCOINUSDT", "1000BONKUSDT", "AVAXUSDT", "LTCUSDT", "ALPACAUSDT",
-		"BCHUSDT", "XLMUSDT", "XRPUSDC", "BNXUSDT", "ETHUSDC", "BTCUSDC", "SOLUSDC", "VIDTUSDT",
-		"DOTUSDT", "NEARUSDT", "ARBUSDT", "1000SHIBUSDT", "TRXUSDT", "PNUTUSDT",
-		"HBARUSDT", "1INCHUSDT", "SUIUSDC", "1000FLOKIUSDT", "GALAUSDT", "TIAUSDT", "ETHFIUSDT",
-		"FILUSDT", "TAOUSDT", "CRVUSDT", "FETUSDT", "INJUSDT", "1000BONKUSDC",
-		"SPXUSDT", "TONUSDT", "ETCUSDT", "PUMPUSDT", "ENAUSDT", "LDOUSDT", "NEIROUSDT", "AAVEUSDT",
-		"UNIUSDT", "APTUSDT", "TRUMPUSDT", "DOGEUSDC", "VIRTUALUSDT", "SEIUSDT", "WIFUSDT",
-		"ONDOUSDT", "MOODENGUSDT", "PENGUUSDT", "NEIROETHUSDT", "CROSSUSDT", "OPUSDT",
-		"FXSUSDT", "DOGEUSDT", "VINEUSDT", "MEMEUSDT", "FHEUSDT", "BERAUSDT", "PEPEUSDT",
-		"MITOUSDT", "ATOMUSDT", "SUIUSDT", "EIGENUSDT", "AEROUSDT", "BONKUSDT", "SHIBUSDT",
-		"PYTHUSDT", "BIOUSDT", "PIPPINUSDT", "OPUSDT", "IPUSDT", "PARTIUSDT", "SYRUPUSDT",
-		"PENDLEUSDT", "TRUMPOFFICIALUSDT", "PUMPFUNUSDT", "OPUSDT", "RENDERUSDT", "SOLUSDT",
-		"INJUSDT", "SUIUSDT", "PENDLEUSDT", "LINEAUSDT", "JELLYJELLYUSDT",
-		"TIAUSDT", "WLFIUSDT", "ETCUSDT", "POLUSDT", "ICPUSDT", "ENSUSDT", "VETUSDT", "ALGOUSDT",
-		"RAYUSDT", "FETUSDT", "JUPUSDT", "JTOUSDT", "MKRUSDT", "FORMUSDT", "CRVUSDT", "QNTUSDT",
-		"LDOUSDT", "PYTHUSDT", "STXUSDT", "PAXGUSDT", "IMXUSDT", "GRTUSDT", "KAIAUSDT", "FLOKIUSDT",
-		"SUSDT", "SANDUSDT", "CAKEUSDT", "CFXUSDT", "WIFUSDT", "ZECUSDT", "NEXOUSDT", "THETAUSDT",
-		"ETHFIUSDT", "GALAUSDT", "IOTAUSDT", "XTZUSDT", "AUSDT", "JASMYUSDT", "DEXEUSDT", "NEOUSDT",
-		"AXSUSDT", "FLOWUSDT", "MANAUSDT", "ZROUSDT", "STRKUSDT", "RUNEUSDT", "APEUSDT", "DYDXUSDT",
-		"ZKUSDT", "EIGENUSDT", "ARUSDT", "RSRUSDT", "WUSDT", "SUNUSDT", "COMPUSDT", "CHZUSDT",
-		"EGLDUSDT", "BANUSDT", "MOVEUSDT", "GRIFFAINUSDT", "GOATUSDT", "PLUMEUSDT", "COOKIEUSDT",
-		"AIUSDT", "AVAAIUSDT", "AIXBTUSDT", "AI16ZUSDT", "UXLINKUSDT", "PEOPLEUSDT", "ORDIUSDT",
-		"INITUSDT", "PEOPLEUSDT", "GRTUSDT", "ACTUSDT", "GRIFFAINUSDT", "FLOCKUSDT", "THETAUSDT", "AVAAIUSDT",
-		"KBONKUSDT", "WCTUSDT", "MOVEUSDT", "JASMYUSDT", "HYPERUSDT", "YFIUSDT", "RSRUSDT", "AGIUSDT", "XAIUSDT",
-		"HOOKUSDT", "CGPTUSDT", "SATSUSDT", "HMSTRUSDT", "XCNUSDT", "PIXELUSDT", "ARKMUSDT", "SAHARAUSDT",
-		"WLDUSDT", "NEWTUSDT", "IOUSDT", "TAIKOUSDT", "VANAUSDT", "BRUSDT", "LAUNCHCOINUSDT", "SHELLUSDT",
-	} // 想排除的币放这里
 	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
-	waitChan       = make(chan []types.CoinIndicator, 30) //等待区
-	waitChanLong   = make(chan []types.CoinIndicator, 30) //等待区
+	waitChan       = make(chan []types.CoinIndicator, 30) //短线等待区
+	waitChanLong   = make(chan []types.CoinIndicator, 30) //中线等待区
+	waitChanBIG    = make(chan []types.CoinIndicator, 30) //长线等待区
 	topGainers     = []string{}                           //涨幅榜
 	newSymbols     = []string{}                           //新币合约
 	banSymbols     = []string{}                           //封禁区
@@ -92,6 +64,8 @@ func main() {
 	mux.HandleFunc("/api/latest-tg-messages-waiting", latestMessagesWaitingHandler)
 	mux.HandleFunc("/api/latest-tg-messages-long", latestMessagesLongHandler)
 	mux.HandleFunc("/api/latest-tg-messages-waiting-long", latestMessagesWaitingLongHandler)
+	mux.HandleFunc("/api/latest-tg-messages-long-big", latestMessagesLongBIGHandler)
+	mux.HandleFunc("/api/latest-tg-messages-waiting-long-big", latestMessagesWaitingLongBIGHandler)
 
 	go func() {
 		if err := http.ListenAndServe(":8888", corsMiddleware(mux)); err != nil {
@@ -160,6 +134,15 @@ func main() {
 		long_waiting_bot,
 	)
 
+	go utils.WaitEnergeLB(
+		waitChanBIG,
+		CEX_BIG_BOT,
+		chatID,
+		client,
+		klinesCount,
+		CEX_BIG_WAIT_BOT,
+	)
+
 	//短线监控模型
 	go func() {
 		progressLogger.Printf("[runScan] 首次立即执行: %s", time.Now().Format("15:04:05"))
@@ -190,7 +173,7 @@ func main() {
 		})
 	}()
 
-	//长线监控模型
+	//中线监控模型
 	go func() {
 		progressLogger.Printf("[runScanLong] 首次立即执行: %s", time.Now().Format("15:04:05"))
 		if err := runScanLong(client); err != nil {
@@ -213,6 +196,35 @@ func main() {
 				go func() {
 					if err := runScanLong(client); err != nil {
 						progressLogger.Printf("周期 runScan 出错: %v", err)
+					}
+				}()
+			}
+		})
+	}()
+
+	//长线监控模型
+	go func() {
+		progressLogger.Printf("[runScanBIG] 首次立即执行: %s", time.Now().Format("15:04:05"))
+		if err := runScanBIG(client); err != nil {
+			progressLogger.Printf("首次 runScanBIG 出错: %v", err)
+		}
+
+		// 计算下一次整点时间
+		now := time.Now()
+		nextAligned := now.Truncate(8 * time.Hour).Add(8 * time.Hour) // 下一个 8 小时整点
+		delay := time.Until(nextAligned)
+
+		time.AfterFunc(delay, func() {
+			if err := runScanBIG(client); err != nil {
+				progressLogger.Printf("8小时整点 runScan 出错: %v", err)
+			}
+
+			ticker := time.NewTicker(8 * time.Hour)
+			for t := range ticker.C {
+				progressLogger.Printf("[runScanBIG] 每8小时触发: %s", t.Format("15:04:05"))
+				go func() {
+					if err := runScanBIG(client); err != nil {
+						progressLogger.Printf("周期 runScanBIG 出错: %v", err)
 					}
 				}()
 			}
@@ -280,7 +292,7 @@ func runScan(client *futures.Client) error {
 
 	sort.Slice(results, func(i, j int) bool { return results[i].StochRSI > results[j].StochRSI })
 
-	return utils.PushTelegram(results, botToken, high_profit_srsi_botToken, chatID)
+	return nil
 }
 
 func runScanLong(client *futures.Client) error {
@@ -328,11 +340,31 @@ func runScanLong(client *futures.Client) error {
 		progressLogger.Println("waitChan 被阻塞，跳过本次发送")
 	}
 
-	return utils.PushTelegram(resultsLong, botToken, high_profit_srsi_botToken, chatID)
+	return nil
+}
+func runScanBIG(client *futures.Client) error {
+	//Long代币列表
+	BIGSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
+
+	var resultsBIG []types.CoinIndicator
+	for _, sym := range BIGSymbols {
+		ind, ok := analyseSymbolBIG(client, types.Candidate{Symbol: sym})
+		if ok {
+			resultsBIG = append(resultsBIG, ind)
+		}
+	}
+
+	// ---------- 3. 发送等待区 channel ----------
+	select {
+	case waitChanBIG <- resultsBIG:
+	default:
+		progressLogger.Println("waitChan 被阻塞，跳过本次发送")
+	}
+
+	return nil
 }
 
-/* ====================== 单币分析 ====================== */
-
+/* ====================== 短线分析 ====================== */
 func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 使用 defer 捕获可能的 panic
 	defer func() {
@@ -431,8 +463,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	return types.CoinIndicator{}, false
 }
 
-/* ====================== 单币分析 ====================== */
-
+/* ====================== 中线分析 ====================== */
 func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -523,6 +554,91 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	return types.CoinIndicator{}, false
 }
 
+/* ====================== 长线分析 ====================== */
+func analyseSymbolBIG(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			// 记录 panic 信息，方便调试
+			fmt.Printf("[analyseSymbolLong] Panic recovered for symbol %s: %v\n", c.Symbol, r)
+		}
+	}()
+	symbol := c.Symbol
+
+	var inst string
+
+	var MACDW1 string
+	var closesM1, closesW1, closesD3 []float64
+	var err error
+	var BIGTrend string
+
+	closesM1, err = utils.GetClosesWithFallback(client, symbol, "1M")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+	priceBIG := closesM1[len(closesM1)-1]
+	_, EMA25M1 := utils.CalculateEMA(closesM1, 25)
+	BIGMACDUP := utils.IsGoldenUP(closesM1, 6, 13, 5)
+	BIGMACDDOWN := utils.IsDeadDOWN(closesM1, 6, 13, 5)
+	if priceBIG > EMA25M1 && BIGMACDUP {
+		BIGTrend = "BUYMACD"
+	} else if priceBIG < EMA25M1 && BIGMACDDOWN {
+		BIGTrend = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+
+	closesW1, err = utils.GetClosesWithFallback(client, symbol, "1w")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+
+	price := closesW1[len(closesW1)-1]
+	BIGDIFUP := utils.IsDIFUP(closesW1, 6, 13, 5)
+	BIGDIFDOWN := utils.IsDIFDOWN(closesW1, 6, 13, 5)
+	_, EMA25W1NOW := utils.CalculateEMA(closesW1, 25)
+
+	if price > EMA25W1NOW && BIGDIFUP {
+		MACDW1 = "BUYMACD"
+	} else if price < EMA25W1NOW && BIGDIFDOWN {
+		MACDW1 = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+	closesD3, err = utils.GetClosesWithFallback(client, symbol, "3d")
+	if err != nil {
+		fmt.Println("获取数据失败:", err)
+	}
+
+	//中时未有效跌破
+	pricePre := closesD3[len(closesD3)-2]
+	pricePre2 := closesD3[len(closesD3)-3]
+	_, EMA25D3NOW := utils.CalculateEMA(closesD3, 25)
+	if pricePre > EMA25D3NOW || pricePre2 > EMA25D3NOW {
+		if MACDW1 == "BUYMACD" && BIGTrend == "BUYMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "BUYLongB",
+				Inst:      inst,
+			}, true
+		}
+	} else if pricePre < EMA25D3NOW || pricePre2 < EMA25D3NOW {
+		if MACDW1 == "SELLMACD" && BIGTrend == "SELLMACD" {
+			status := "Wait"
+			return types.CoinIndicator{
+				Symbol:    symbol,
+				Status:    status,
+				Operation: "SELLLongB",
+				Inst:      inst,
+			}, true
+		}
+	} else {
+		return types.CoinIndicator{}, false
+	}
+	return types.CoinIndicator{}, false
+}
+
 func setHTTPClient(c *futures.Client) {
 	proxy, _ := url.Parse(proxyURL)
 	tr := &http.Transport{
@@ -584,6 +700,33 @@ func latestMessagesWaitingLongHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msgs := telegram.GetLatestMessagesWaitingL(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msgs)
+}
+
+func latestMessagesLongBIGHandler(w http.ResponseWriter, r *http.Request) {
+	// 参数limit，默认5
+	limit := 5
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	msgs := telegram.GetLatestMessagesLB(limit)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msgs)
+}
+func latestMessagesWaitingLongBIGHandler(w http.ResponseWriter, r *http.Request) {
+	// 参数limit，默认1
+	limit := 1
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	msgs := telegram.GetLatestMessagesWaitingLB(limit)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
 }

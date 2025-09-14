@@ -136,10 +136,12 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 			progressLogger.Println("获取数据失败:", err)
 		}
 		_, ema25D1Now := CalculateEMA(closesD1, 25)
+		DIFD1UP := IsDIFUP(closesD1, 6, 13, 5)
+		DIFD1DOWN := IsDIFDOWN(closesD1, 6, 13, 5)
 
-		if price > ema25D1Now {
+		if price > ema25D1Now && DIFD1UP {
 			MACDD1 = "BUYMACD"
-		} else if price < ema25D1Now {
+		} else if price < ema25D1Now && DIFD1DOWN {
 			MACDD1 = "SELLMACD"
 		}
 
@@ -236,8 +238,8 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		}
 	}()
 
-	// small delay if needed (保持你原来的 7s 也可以)
-	time.Sleep(7 * time.Second)
+	// small delay if needed (保持你原来的 10s 也可以)
+	time.Sleep(10 * time.Second)
 
 	// Copy list quickly under lock
 	minMonitorMu.Lock()
