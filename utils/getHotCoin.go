@@ -158,20 +158,6 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 			symbolSet[normalizedSymbol] = struct{}{} // Track added symbols
 		}
 
-		// 确保BTC ETH SOL DOGE HYPE存在
-		mainSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT", "DOGEUSDT"}
-		for _, mustHave := range mainSymbols {
-
-			if _, exists := symbolSet[mustHave]; !exists {
-				candidates = append(candidates, types.Candidate{
-					Symbol:    mustHave,
-					RawSymbol: mustHave + "_UMCBL",
-					Volume24h: 0.0,
-				})
-				symbolSet[mustHave] = struct{}{}
-			}
-		}
-
 		// 确保新币合约存在
 		for _, mustHave := range newSymbols {
 			//移除BAN标的
