@@ -237,6 +237,9 @@ func main() {
 }
 
 func runScan(client *futures.Client) error {
+	//10秒获K
+	time.Sleep(10 * time.Second)
+
 	var results []types.CoinIndicator
 
 	// ---------- 1. 构建合并候选 ----------
@@ -296,7 +299,8 @@ func runScan(client *futures.Client) error {
 }
 
 func runScanLong(client *futures.Client) error {
-
+	//10秒获K
+	time.Sleep(10 * time.Second)
 	// ---------- 1. 构建合并候选 ----------
 	if len(newSymbols) == 0 {
 		progressLogger.Println("新币合约启动失败")
@@ -343,6 +347,8 @@ func runScanLong(client *futures.Client) error {
 	return nil
 }
 func runScanBIG(client *futures.Client) error {
+	//10秒获K
+	time.Sleep(10 * time.Second)
 	//Long代币列表
 	BIGSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
 
