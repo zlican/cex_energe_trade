@@ -158,6 +158,19 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 			symbolSet[normalizedSymbol] = struct{}{} // Track added symbols
 		}
 
+		// 确保 BTC / ETH 存在
+		var BE = []string{"BTCUSDT", "ETHUSDT"}
+		for _, mustHave := range BE {
+			if _, exists := symbolSet[mustHave]; !exists {
+				candidates = append(candidates, types.Candidate{
+					Symbol:    mustHave,
+					RawSymbol: mustHave + "_UMCBL",
+					Volume24h: 0.0,
+				})
+				symbolSet[mustHave] = struct{}{}
+			}
+		}
+
 		// 确保新币合约存在
 		for _, mustHave := range newSymbols {
 			//移除BAN标的
