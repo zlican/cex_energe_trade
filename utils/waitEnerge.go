@@ -463,7 +463,7 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 	// ===== Step 2: 遍历新结果 =====
 	for _, coin := range newResults {
 		// 如果已经有 BTC/ETH SELL，且当前 coin 不是 BTC/ETH，就跳过
-		if hasBTCorETHSell && coin.Operation == "SELL" &&
+		if hasBTCorETHSell &&
 			coin.Symbol != "BTCUSDT" && coin.Symbol != "ETHUSDT" {
 			continue
 		}
