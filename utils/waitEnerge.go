@@ -449,20 +449,28 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 	now := time.Now()
 
 	waitMu.Lock()
-	for _, coin := range newResults {
-		exist, exists := waitList[coin.Symbol]
-		if !exists {
-			waitList[coin.Symbol] = waitToken{
-				Symbol:            coin.Symbol,
-				Inst:              coin.Inst,
-				Operation:         coin.Operation,
-				Status:            coin.Status,
-				AddedAt:           now,
-				LastInvalidPushed: true,
-			}
-			newAdded = true
+	defer waitMu.Unlock()
+
+	// ===== Step 1: 检查是否已有 BTC/ETH 且为 SELL =====
+	hasBTCorETHSell := false
+	for _, w := range waitList {
+		if (w.Symbol == "BTCUSDT" || w.Symbol == "ETHUSDT") && w.Operation == "SELL" {
+			hasBTCorETHSell = true
+			break
 		}
-		if exists && exist.Operation != coin.Operation {
+	}
+
+	// ===== Step 2: 遍历新结果 =====
+	for _, coin := range newResults {
+		// 如果已经有 BTC/ETH SELL，且当前 coin 不是 BTC/ETH，就跳过
+		if hasBTCorETHSell && coin.Operation == "SELL" &&
+			coin.Symbol != "BTCUSDT" && coin.Symbol != "ETHUSDT" {
+			continue
+		}
+
+		// 原有逻辑：不存在 → 添加；存在但 Operation 不同 → 更新
+		exist, exists := waitList[coin.Symbol]
+		if !exists || exist.Operation != coin.Operation {
 			waitList[coin.Symbol] = waitToken{
 				Symbol:            coin.Symbol,
 				Inst:              coin.Inst,
@@ -475,10 +483,33 @@ func addToWaitList(newResults []types.CoinIndicator, waiting_token, chatID strin
 		}
 	}
 
+	// ===== Step 3: 触发推送 =====
 	if newAdded {
+		pruneWaitList() // 每次添加完做一次修剪
 		sendWaitListBroadcast(now, waiting_token, chatID)
 	}
-	waitMu.Unlock()
+}
+
+// pruneWaitList 移除不符合规则的标的
+func pruneWaitList() {
+	hasBTCorETHSell := false
+	for _, w := range waitList {
+		if (w.Symbol == "BTCUSDT" || w.Symbol == "ETHUSDT") && w.Operation == "SELL" {
+			hasBTCorETHSell = true
+			break
+		}
+	}
+
+	if !hasBTCorETHSell {
+		return // 没有 BTC/ETH SELL，就不需要处理
+	}
+
+	// 如果存在 BTC/ETH SELL，只保留 BTC/ETH
+	for sym, _ := range waitList {
+		if sym != "BTCUSDT" && sym != "ETHUSDT" {
+			delete(waitList, sym)
+		}
+	}
 }
 
 func startMinuteMonitorLoop(wait_sucess_token, chatID string, client *futures.Client) {

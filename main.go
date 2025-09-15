@@ -316,7 +316,7 @@ func runScanLong(client *futures.Client) error {
 	)
 
 	//Long代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT", "DOGEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "HYPEUSDT", "DOGEUSDT"}
 
 	var resultsLong []types.CoinIndicator
 	for _, sym := range LongSymbols {
@@ -344,7 +344,7 @@ func runScanLong(client *futures.Client) error {
 }
 func runScanBIG(client *futures.Client) error {
 	//Long代币列表
-	BIGSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
+	BIGSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
 
 	var resultsBIG []types.CoinIndicator
 	for _, sym := range BIGSymbols {
