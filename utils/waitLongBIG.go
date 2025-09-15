@@ -138,15 +138,16 @@ func executeWaitCheckLB(wait_sucess_token, chatID string, client *futures.Client
 		_, ema25W1Now := CalculateEMA(closesW1, 25)
 		DIFW1UP := IsDIFUP(closesW1, 6, 13, 5)
 		DIFW1DOWN := IsDIFDOWN(closesW1, 6, 13, 5)
+		MA60W1 := CalculateMA(closesW1, 60)
 
-		if price > ema25W1Now && DIFW1UP {
+		if price > ema25W1Now && price > MA60W1 && DIFW1UP {
 			MACDW1 = "BUYMACD"
-		} else if price < ema25W1Now && DIFW1DOWN {
+		} else if price < ema25W1Now && price < MA60W1 && DIFW1DOWN {
 			MACDW1 = "SELLMACD"
 		}
 
 		switch token.Operation {
-		case "BUYLong":
+		case "BUYLongB":
 			if MACDW1 == "BUYMACD" && MACDD3 == "BUYMACD" && MACDD1 == "BUYMACD" {
 				// Add to 4H monitoring pipeline
 				minMonitorMuB.Lock()
@@ -180,9 +181,9 @@ func executeWaitCheckLB(wait_sucess_token, chatID string, client *futures.Client
 				}
 				t.LastInvalidPushed = true
 				waitListLB[sym] = t
-				waitMuL.Unlock()
+				waitMuLB.Unlock()
 			}
-		case "SELLLong":
+		case "SELLLongB":
 			if MACDW1 == "SELLMACD" && MACDD3 == "SELLMACD" && MACDD1 == "SELLMACD" {
 				// Add to 4H monitoring pipeline
 				minMonitorMuB.Lock()
@@ -195,7 +196,7 @@ func executeWaitCheckLB(wait_sucess_token, chatID string, client *futures.Client
 				}
 				minMonitorMuB.Unlock()
 			} else if mid != "DOWN" {
-				waitMuL.Lock()
+				waitMuLB.Lock()
 				// 如果之前推送过买入信号，而且还没发过“失效”消息
 				t := waitListLB[sym]
 				if !t.LastInvalidPushed {
@@ -269,12 +270,12 @@ func executeMinMonitorCheckB(wait_sucess_token, chatID string, client *futures.C
 		DIFDOWNH4 := IsDIFDOWN(closesH4, 6, 13, 5)
 
 		validX := "XBUY"
-		if token.Operation == "SELLLong" {
+		if token.Operation == "SELLLongB" {
 			validX = "XSELL"
 		}
 
 		validMACD := "BUYMACD"
-		if token.Operation == "SELLLong" {
+		if token.Operation == "SELLLongB" {
 			validMACD = "SELLMACD"
 		}
 
@@ -344,7 +345,7 @@ func executeMinMonitorCheckB(wait_sucess_token, chatID string, client *futures.C
 func sendMinMonitorBroadcastB(sym string, operation, wait_sucess_token, chatID string) error {
 	emoji := "🟢"
 	action := "做多"
-	if operation == "SELLLong" {
+	if operation == "SELLLongB" {
 		emoji = "🔴"
 		action = "做空"
 	}

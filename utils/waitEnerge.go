@@ -342,9 +342,10 @@ func executeWaitCheck(wait_sucess_token, chatID string, client *futures.Client, 
 		}
 		DIFH1UP := IsDIFUP(closesH1, 6, 13, 5)
 		DIFH1DOWN := IsDIFDOWN(closesH1, 6, 13, 5)
-		if price > ema25H1Now && DIFH1UP {
+		MA60H1 := CalculateMA(closesH1, 60)
+		if price > ema25H1Now && price > MA60H1 && DIFH1UP {
 			MACDH1 = "BUYMACD"
-		} else if price < ema25H1Now && DIFH1DOWN {
+		} else if price < ema25H1Now && price < MA60H1 && DIFH1DOWN {
 			MACDH1 = "SELLMACD"
 		}
 
