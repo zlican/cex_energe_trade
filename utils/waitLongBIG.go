@@ -12,6 +12,7 @@ import (
 )
 
 var minMonitorOnceB sync.Once
+var firstCheckOnceB sync.Once
 
 type waitTokenLB struct {
 	Symbol            string
@@ -378,12 +379,7 @@ func WaitEnergeLB(
 ) {
 	go func() {
 		// 🚀 先消费一次已有消息，保证 waitList 不为空
-		drainResultsLB(resultsChanLongB, waiting_token, chatID)
-
-		// 再执行首次检测
-		now := time.Now()
-		executeWaitCheckLB(wait_sucess_token, chatID, client, waiting_token, now)
-
+		drainResultsLB(resultsChanLongB, waiting_token, chatID, wait_sucess_token, client)
 		time.Sleep(waitUntilNext8Hour())
 		ticker := time.NewTicker(8 * time.Hour)
 		defer ticker.Stop()
@@ -396,18 +392,18 @@ func WaitEnergeLB(
 	start4HMinMonitorLoopB(wait_sucess_token, chatID, client)
 	// 常规消费
 	for newResults := range resultsChanLongB {
-		addToWaitListLB(newResults, waiting_token, chatID)
+		addToWaitListLB(newResults, waiting_token, chatID, wait_sucess_token, client)
 	}
 }
 
 // ================== 辅助函数 ==================
 
 // 启动时先 drain 一次通道（非阻塞，防止残留）
-func drainResultsLB(resultsChan chan []types.CoinIndicator, waiting_token, chatID string) {
+func drainResultsLB(resultsChan chan []types.CoinIndicator, waiting_token, chatID, wait_sucess_token string, client *futures.Client) {
 	for {
 		select {
 		case newResults := <-resultsChan:
-			addToWaitListLB(newResults, waiting_token, chatID)
+			addToWaitListLB(newResults, waiting_token, chatID, wait_sucess_token, client)
 		default:
 			return
 		}
@@ -415,7 +411,7 @@ func drainResultsLB(resultsChan chan []types.CoinIndicator, waiting_token, chatI
 }
 
 // 公共的添加逻辑（含 BTC/ETH 优先规则）
-func addToWaitListLB(newResults []types.CoinIndicator, waiting_token, chatID string) {
+func addToWaitListLB(newResults []types.CoinIndicator, waiting_token, chatID, wait_sucess_token string, client *futures.Client) {
 	var newAdded bool
 	now := time.Now()
 	waitMuLB.Lock()
@@ -450,6 +446,11 @@ func addToWaitListLB(newResults []types.CoinIndicator, waiting_token, chatID str
 
 	if newAdded {
 		sendWaitListBroadcastLB(now, waiting_token, chatID)
+		// 再执行首次检测
+		firstCheckOnce.Do(func() {
+			go executeWaitCheckLB(wait_sucess_token, chatID, client, waiting_token, time.Now())
+
+		})
 	}
 }
 

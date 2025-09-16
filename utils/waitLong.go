@@ -12,6 +12,7 @@ import (
 )
 
 var minMonitorOnce sync.Once
+var firstCheckOnce sync.Once
 
 type waitTokenL struct {
 	Symbol            string
@@ -64,7 +65,6 @@ func sendWaitListBroadcastL(now time.Time, waiting_token, chatID string) {
 }
 
 func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client, waiting_token string, now time.Time) {
-	// 使用 defer 捕获可能的 panic
 	defer func() {
 		if r := recover(); r != nil {
 			// 记录 panic 信息，方便调试
@@ -259,7 +259,7 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		// --- 获取 15m 数据（无锁） ---
 		closesM15, err := GetClosesWithFallback(client, sym, "15m")
 		if err != nil || len(closesM15) == 0 {
-			progressLogger.Printf("获取 %s (1m) 数据失败: %v\n", sym, err)
+			progressLogger.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
 			continue
 		}
 		price15 := closesM15[len(closesM15)-1]
@@ -289,7 +289,7 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		// --- 获取 15m 数据（无锁） ---
 		closesH4, err := GetClosesWithFallback(client, sym, "4H")
 		if err != nil || len(closesH4) == 0 {
-			progressLogger.Printf("获取 %s (1m) 数据失败: %v\n", sym, err)
+			progressLogger.Printf("获取 %s (15m) 数据失败: %v\n", sym, err)
 			continue
 		}
 		price := closesH4[len(closesH4)-1]
@@ -303,7 +303,6 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		} else if price < ema25H4now && isDead {
 			MACDH4 = "SELLMACD"
 		}
-		// 触发
 		if MACDM15 == validX && MACDH4 == validMACD {
 			msgsToSend = append(msgsToSend, struct{ sym, operation string }{sym, token.Operation})
 			toRemove = append(toRemove, sym) //发送一次就删除了
@@ -378,12 +377,7 @@ func WaitEnergeL(
 ) {
 	go func() {
 		// 🚀 先消费一次已有消息，保证 waitList 不为空
-		drainResultsL(resultsChanLong, waiting_token, chatID)
-
-		// 再执行首次检测
-		now := time.Now()
-		executeWaitCheckL(wait_sucess_token, chatID, client, waiting_token, now)
-
+		drainResultsL(resultsChanLong, waiting_token, chatID, wait_sucess_token, client)
 		time.Sleep(waitUntilNextHour())
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
@@ -396,18 +390,18 @@ func WaitEnergeL(
 	start15MinMonitorLoop(wait_sucess_token, chatID, client)
 	// 常规消费
 	for newResults := range resultsChanLong {
-		addToWaitListL(newResults, waiting_token, chatID)
+		addToWaitListL(newResults, waiting_token, chatID, wait_sucess_token, client)
 	}
 }
 
 // ================== 辅助函数 ==================
 
 // 启动时先 drain 一次通道（非阻塞，防止残留）
-func drainResultsL(resultsChan chan []types.CoinIndicator, waiting_token, chatID string) {
+func drainResultsL(resultsChan chan []types.CoinIndicator, waiting_token, chatID, wait_sucess_token string, client *futures.Client) {
 	for {
 		select {
 		case newResults := <-resultsChan:
-			addToWaitListL(newResults, waiting_token, chatID)
+			addToWaitListL(newResults, waiting_token, chatID, wait_sucess_token, client)
 		default:
 			return
 		}
@@ -415,7 +409,7 @@ func drainResultsL(resultsChan chan []types.CoinIndicator, waiting_token, chatID
 }
 
 // 公共的添加逻辑（含 BTC/ETH 优先规则）
-func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID string) {
+func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID, wait_sucess_token string, client *futures.Client) {
 	var newAdded bool
 	now := time.Now()
 	waitMuL.Lock()
@@ -450,6 +444,11 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID stri
 
 	if newAdded {
 		sendWaitListBroadcastL(now, waiting_token, chatID)
+
+		//首次执行检测
+		firstCheckOnce.Do(func() {
+			go executeWaitCheckL(wait_sucess_token, chatID, client, waiting_token, time.Now())
+		})
 	}
 }
 
