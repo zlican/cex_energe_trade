@@ -424,8 +424,10 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 	pricePre := closesM15[len(closesM15)-2]
 	pricePre2 := closesM15[len(closesM15)-3]
 	_, EMA25M15NOW := utils.CalculateEMA(closesM15, 25)
+	DIFM15UP := utils.IsDIFUP(closesM15, 6, 13, 5)
+	DIFM15DOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 
-	if pricePre > EMA25M15NOW || pricePre2 > EMA25M15NOW {
+	if (pricePre > EMA25M15NOW || pricePre2 > EMA25M15NOW) && DIFM15UP {
 		if MACDH1 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -435,7 +437,7 @@ func analyseSymbol(client *futures.Client, c types.Candidate) (types.CoinIndicat
 				Inst:      inst,
 			}, true
 		}
-	} else if (pricePre < EMA25M15NOW || pricePre2 < EMA25M15NOW) && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
+	} else if (pricePre < EMA25M15NOW || pricePre2 < EMA25M15NOW) && DIFM15DOWN && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
 		if MACDH1 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -501,7 +503,9 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 	pricePre := closesH4[len(closesH4)-2]
 	pricePre2 := closesH4[len(closesH4)-3]
 	_, EMA25H4NOW := utils.CalculateEMA(closesH4, 25)
-	if pricePre > EMA25H4NOW || pricePre2 > EMA25H4NOW {
+	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
+	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
+	if (pricePre > EMA25H4NOW || pricePre2 > EMA25H4NOW) && DIFH4UP {
 		if MACDD1 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -511,7 +515,7 @@ func analyseSymbolLong(client *futures.Client, c types.Candidate) (types.CoinInd
 				Inst:      inst,
 			}, true
 		}
-	} else if (pricePre < EMA25H4NOW || pricePre2 < EMA25H4NOW) && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
+	} else if (pricePre < EMA25H4NOW || pricePre2 < EMA25H4NOW) && DIFH4DOWN && (symbol == "BTCUSDT" || symbol == "ETHUSDT") {
 		if MACDD1 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -570,7 +574,9 @@ func analyseSymbolBIG(client *futures.Client, c types.Candidate) (types.CoinIndi
 	pricePre := closesD3[len(closesD3)-2]
 	pricePre2 := closesD3[len(closesD3)-3]
 	_, EMA25D3NOW := utils.CalculateEMA(closesD3, 25)
-	if pricePre > EMA25D3NOW || pricePre2 > EMA25D3NOW {
+	DIFD3UP := utils.IsDIFUP(closesD3, 6, 13, 5)
+	DIFD3DOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
+	if (pricePre > EMA25D3NOW || pricePre2 > EMA25D3NOW) && DIFD3UP {
 		if MACDW1 == "BUYMACD" {
 			status := "Wait"
 			return types.CoinIndicator{
@@ -580,7 +586,7 @@ func analyseSymbolBIG(client *futures.Client, c types.Candidate) (types.CoinIndi
 				Inst:      inst,
 			}, true
 		}
-	} else if pricePre < EMA25D3NOW || pricePre2 < EMA25D3NOW {
+	} else if (pricePre < EMA25D3NOW || pricePre2 < EMA25D3NOW) && DIFD3DOWN {
 		if MACDW1 == "SELLMACD" {
 			status := "Wait"
 			return types.CoinIndicator{

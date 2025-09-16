@@ -101,18 +101,21 @@ func executeWaitCheckL(wait_sucess_token, chatID string, client *futures.Client,
 		isGolden := IsGolden(closesH4, 6, 13, 5)
 		isDead := IsDead(closesH4, 6, 13, 5)
 		_, ema25H4now := CalculateEMA(closesH4, 25)
+
+		DIFH4UP := IsDIFUP(closesH4, 6, 13, 5)
+		DIFH4DOWN := IsDIFDOWN(closesH4, 6, 13, 5)
 		MACDH4 = "RANGE"
-		if price > ema25H4now && isGolden {
+		if price > ema25H4now && isGolden && DIFH4UP {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now && isDead {
+		} else if price < ema25H4now && isDead && DIFH4DOWN {
 			MACDH4 = "SELLMACD"
 		}
 
 		//趋势结束标志
 		mid = "RANGE"
-		if pricePre > ema25H4now || pricePre2 > ema25H4now {
+		if (pricePre > ema25H4now || pricePre2 > ema25H4now) && DIFH4UP {
 			mid = "UP"
-		} else if pricePre < ema25H4now || pricePre2 < ema25H4now {
+		} else if (pricePre < ema25H4now || pricePre2 < ema25H4now) && DIFH4DOWN {
 			mid = "DOWN"
 		}
 
@@ -295,10 +298,13 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		isGolden := IsGolden(closesH4, 6, 13, 5)
 		isDead := IsDead(closesH4, 6, 13, 5)
 		_, ema25H4now := CalculateEMA(closesH4, 25)
+
+		DIFH4UP := IsDIFUP(closesH4, 6, 13, 5)
+		DIFH4DOWN := IsDIFDOWN(closesH4, 6, 13, 5)
 		MACDH4 := "RANGE"
-		if price > ema25H4now && isGolden {
+		if price > ema25H4now && isGolden && DIFH4UP {
 			MACDH4 = "BUYMACD"
-		} else if price < ema25H4now && isDead {
+		} else if price < ema25H4now && isDead && DIFH4DOWN {
 			MACDH4 = "SELLMACD"
 		}
 		if MACDM15 == validX && MACDH4 == validMACD {
