@@ -266,8 +266,6 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		ma60M15 := CalculateMA(closesM15, 60)
 		XSTRONGUPM15 := XSTRONGUP(closesM15, 6, 13, 5)
 		XSTRONGDOWNM15 := XSTRONGDOWN(closesM15, 6, 13, 5)
-		DIFUPM15 := IsDIFUP(closesM15, 6, 13, 5)
-		DIFDOWNM15 := IsDIFDOWN(closesM15, 6, 13, 5)
 
 		validX := "XBUY"
 		if token.Operation == "SELLLong" {
@@ -280,9 +278,9 @@ func executeMinMonitorCheck(wait_sucess_token, chatID string, client *futures.Cl
 		}
 
 		MACDM15 := ""
-		if price15 > ma60M15 && XSTRONGUPM15 && DIFUPM15 {
+		if price15 > ma60M15 && XSTRONGUPM15 {
 			MACDM15 = "XBUY"
-		} else if price15 < ma60M15 && XSTRONGDOWNM15 && DIFDOWNM15 {
+		} else if price15 < ma60M15 && XSTRONGDOWNM15 {
 			MACDM15 = "XSELL"
 		}
 
@@ -378,6 +376,7 @@ func WaitEnergeL(
 	go func() {
 		// 🚀 先消费一次已有消息，保证 waitList 不为空
 		drainResultsL(resultsChanLong, waiting_token, chatID, wait_sucess_token, client)
+		start15MinMonitorLoop(wait_sucess_token, chatID, client)
 		time.Sleep(waitUntilNextHour())
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
@@ -387,7 +386,6 @@ func WaitEnergeL(
 		}
 	}()
 
-	start15MinMonitorLoop(wait_sucess_token, chatID, client)
 	// 常规消费
 	for newResults := range resultsChanLong {
 		addToWaitListL(newResults, waiting_token, chatID, wait_sucess_token, client)
@@ -447,7 +445,7 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID, wai
 
 		//首次执行检测
 		firstCheckOnce.Do(func() {
-			go executeWaitCheckL(wait_sucess_token, chatID, client, waiting_token, time.Now())
+			executeWaitCheckL(wait_sucess_token, chatID, client, waiting_token, time.Now())
 		})
 	}
 }
@@ -455,6 +453,8 @@ func addToWaitListL(newResults []types.CoinIndicator, waiting_token, chatID, wai
 func start15MinMonitorLoop(wait_sucess_token, chatID string, client *futures.Client) {
 	minMonitorOnce.Do(func() {
 		go func() {
+			//立刻执行一次
+			executeMinMonitorCheck(wait_sucess_token, chatID, client, time.Now())
 			// 计算到下一个 15 分钟整点的时间
 			now := time.Now()
 			next := now.Truncate(15 * time.Minute).Add(15 * time.Minute)

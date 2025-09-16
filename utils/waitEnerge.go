@@ -174,8 +174,6 @@ func executeMinuteMonitorCheck(wait_sucess_token, chatID string, client *futures
 		ma60M1 := CalculateMA(closesM1, 60)
 		XSTRONGUPM1 := XSTRONGUP(closesM1, 6, 13, 5)
 		XSTRONGDOWNM1 := XSTRONGDOWN(closesM1, 6, 13, 5)
-		DIFUPM1 := IsDIFUP(closesM1, 6, 13, 5)
-		DIFDOWNM1 := IsDIFDOWN(closesM1, 6, 13, 5)
 
 		validX := "XBUY"
 		if token.Operation == "SELL" {
@@ -188,9 +186,9 @@ func executeMinuteMonitorCheck(wait_sucess_token, chatID string, client *futures
 		}
 
 		MACDM1 := ""
-		if price1 > ma60M1 && XSTRONGUPM1 && DIFUPM1 {
+		if price1 > ma60M1 && XSTRONGUPM1 {
 			MACDM1 = "XBUY"
-		} else if price1 < ma60M1 && XSTRONGDOWNM1 && DIFDOWNM1 {
+		} else if price1 < ma60M1 && XSTRONGDOWNM1 {
 			MACDM1 = "XSELL"
 		}
 
@@ -390,6 +388,7 @@ func WaitEnerge(
 		drainResults(resultsChan, waiting_token, chatID)
 		now := time.Now()
 		executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
+		go startMinuteMonitorLoop(wait_sucess_token, chatID, client)
 		time.Sleep(waitUntilNext5Min())
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -397,7 +396,7 @@ func WaitEnerge(
 			go executeWaitCheck(wait_sucess_token, chatID, client, waiting_token, now)
 		}
 	}()
-	go startMinuteMonitorLoop(wait_sucess_token, chatID, client)
+
 	go removeBanFromWaitList(chBanToWaitList, chatID, wait_sucess_token, waiting_token)
 	for newResults := range resultsChan {
 		addToWaitList(newResults, waiting_token, chatID)
@@ -515,6 +514,8 @@ func pruneWaitList() {
 func startMinuteMonitorLoop(wait_sucess_token, chatID string, client *futures.Client) {
 	minuteMonitorOnce.Do(func() {
 		go func() {
+			//立刻执行一次
+			executeMinuteMonitorCheck(wait_sucess_token, chatID, client, time.Now())
 			// 对齐到下一个整分钟
 			time.Sleep(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 			ticker := time.NewTicker(time.Minute)

@@ -267,8 +267,6 @@ func executeMinMonitorCheckB(wait_sucess_token, chatID string, client *futures.C
 		ma60H4 := CalculateMA(closesH4, 60)
 		XSTRONGUPH4 := XSTRONGUP(closesH4, 6, 13, 5)
 		XSTRONGDOWNH4 := XSTRONGDOWN(closesH4, 6, 13, 5)
-		DIFUPH4 := IsDIFUP(closesH4, 6, 13, 5)
-		DIFDOWNH4 := IsDIFDOWN(closesH4, 6, 13, 5)
 
 		validX := "XBUY"
 		if token.Operation == "SELLLongB" {
@@ -281,9 +279,9 @@ func executeMinMonitorCheckB(wait_sucess_token, chatID string, client *futures.C
 		}
 
 		MACDH4 := ""
-		if priceH4 > ma60H4 && XSTRONGUPH4 && DIFUPH4 {
+		if priceH4 > ma60H4 && XSTRONGUPH4 {
 			MACDH4 = "XBUY"
-		} else if priceH4 < ma60H4 && XSTRONGDOWNH4 && DIFDOWNH4 {
+		} else if priceH4 < ma60H4 && XSTRONGDOWNH4 {
 			MACDH4 = "XSELL"
 		}
 
@@ -380,6 +378,7 @@ func WaitEnergeLB(
 	go func() {
 		// 🚀 先消费一次已有消息，保证 waitList 不为空
 		drainResultsLB(resultsChanLongB, waiting_token, chatID, wait_sucess_token, client)
+		start4HMinMonitorLoopB(wait_sucess_token, chatID, client)
 		time.Sleep(waitUntilNext8Hour())
 		ticker := time.NewTicker(8 * time.Hour)
 		defer ticker.Stop()
@@ -389,7 +388,6 @@ func WaitEnergeLB(
 		}
 	}()
 
-	start4HMinMonitorLoopB(wait_sucess_token, chatID, client)
 	// 常规消费
 	for newResults := range resultsChanLongB {
 		addToWaitListLB(newResults, waiting_token, chatID, wait_sucess_token, client)
@@ -448,7 +446,7 @@ func addToWaitListLB(newResults []types.CoinIndicator, waiting_token, chatID, wa
 		sendWaitListBroadcastLB(now, waiting_token, chatID)
 		// 再执行首次检测
 		firstCheckOnce.Do(func() {
-			go executeWaitCheckLB(wait_sucess_token, chatID, client, waiting_token, time.Now())
+			executeWaitCheckLB(wait_sucess_token, chatID, client, waiting_token, time.Now())
 
 		})
 	}
@@ -457,6 +455,8 @@ func addToWaitListLB(newResults []types.CoinIndicator, waiting_token, chatID, wa
 func start4HMinMonitorLoopB(wait_sucess_token, chatID string, client *futures.Client) {
 	minMonitorOnceB.Do(func() {
 		go func() {
+			///立刻执行一次
+			executeMinMonitorCheckB(wait_sucess_token, chatID, client, time.Now())
 			// 计算到下一个 4 小時整点的时间
 			now := time.Now()
 			next := now.Truncate(4 * time.Hour).Add(4 * time.Hour)
