@@ -99,7 +99,7 @@ func GetBanList() []string {
 }
 
 // 定期获取 ban 列表并发送到 channel
-func StartBanListFetcher(ch chan<- []string, chToWait chan<- []string) {
+func StartBanListFetcher(ch chan<- []string) {
 	go func() {
 		// 启动时立即取一次
 		symbols := GetBanList()
@@ -119,12 +119,6 @@ func StartBanListFetcher(ch chan<- []string, chToWait chan<- []string) {
 			case ch <- symbols:
 			default:
 				fmt.Println("Warning: channel blocked, skipping update")
-			}
-
-			select {
-			case chToWait <- symbols:
-			default:
-				fmt.Println("Warning: chToWait blocked, skipping update")
 			}
 		}
 	}()

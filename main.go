@@ -96,9 +96,8 @@ func main() {
 
 	//获取封禁区
 	chBanList := make(chan []string, 10)
-	chBanListToWaitList := make(chan []string, 10)
 	banSymbols = utils.GetBanList()
-	go utils.StartBanListFetcher(chBanList, chBanListToWaitList)
+	go utils.StartBanListFetcher(chBanList)
 	go func() {
 		for Symbols := range chBanList {
 			banSymbols = Symbols
