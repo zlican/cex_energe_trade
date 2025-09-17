@@ -33,14 +33,6 @@ var (
 		messages: make([]SavedMessage, 0, 100),
 		maxSize:  100,
 	}
-	savedMessagesWaiting = struct {
-		sync.RWMutex
-		messages []SavedMessage
-		maxSize  int
-	}{
-		messages: make([]SavedMessage, 0, 100),
-		maxSize:  100,
-	}
 )
 
 func SendMessage(botToken, chatID, text string) error {
@@ -127,92 +119,6 @@ func GetLatestMessages(n int) []SavedMessage {
 	res := make([]SavedMessage, n)
 	for i := 0; i < n; i++ {
 		res[i] = savedMessages.messages[total-1-i]
-	}
-	return res
-}
-
-func SendMessageWaiting(botToken, chatID, text string) error {
-	proxy := "http://127.0.0.1:10809"
-	proxyURL, err := url.Parse(proxy)
-	if err != nil {
-		return fmt.Errorf("解析代理地址失败: %w", err)
-	}
-
-	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
-	}
-
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   10 * time.Second,
-	}
-	url := fmt.Sprintf("%s%s/sendMessage", telegramAPIURL, botToken)
-
-	message := Message{
-		ChatID: chatID,
-		Text:   text,
-	}
-
-	jsonMessage, err := json.Marshal(message)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	var lastErr error
-	for attempt := 1; attempt <= 3; attempt++ {
-		resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonMessage))
-		if err != nil {
-			lastErr = fmt.Errorf("failed to send message: %w", err)
-		} else {
-			if resp.StatusCode != http.StatusOK {
-				lastErr = fmt.Errorf("received non-200 response (attempt %d): %s", attempt, resp.Status)
-			} else {
-
-				AddMessageWaiting(SavedMessage{
-					Text:      text,
-					Timestamp: time.Now(),
-				})
-
-				resp.Body.Close()
-				return nil
-			}
-			resp.Body.Close()
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return fmt.Errorf("多次发送失败: %w", lastErr)
-}
-
-// AddMessage 添加一条消息，超出maxSize自动删除最早的
-func AddMessageWaiting(msg SavedMessage) {
-	savedMessagesWaiting.Lock()
-	defer savedMessagesWaiting.Unlock()
-
-	if len(savedMessagesWaiting.messages) >= savedMessagesWaiting.maxSize {
-		// 删除最早的一条，保持长度不变
-		savedMessagesWaiting.messages = savedMessagesWaiting.messages[1:]
-	}
-	savedMessagesWaiting.messages = append(savedMessagesWaiting.messages, msg)
-}
-
-// GetLatestMessages 返回最新1条，倒序
-func GetLatestMessagesWaiting(n int) []SavedMessage {
-	savedMessagesWaiting.RLock()
-	defer savedMessagesWaiting.RUnlock()
-
-	total := len(savedMessagesWaiting.messages)
-	if total == 0 {
-		return nil
-	}
-
-	if n > total {
-		n = total
-	}
-
-	res := make([]SavedMessage, n)
-	for i := 0; i < n; i++ {
-		res[i] = savedMessagesWaiting.messages[total-1-i]
 	}
 	return res
 }

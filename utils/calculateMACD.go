@@ -1,5 +1,12 @@
 package utils
 
+import (
+	"log"
+	"os"
+)
+
+var progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
+
 // 计算 MACD：12EMA快线，26EMA慢线，9MACD信号，返回MACD集合，信号集合，柱子集合
 func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) (macdLine, signalLine, histogram []float64) {
 	emaFast, _ := CalculateEMA(closePrices, fastPeriod)
@@ -16,7 +23,7 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-//绿柱
+// 绿柱
 func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -85,7 +92,7 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DIF[len(DIF)-1] < 0
 }
 
-//强升
+// 强升
 func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -102,7 +109,7 @@ func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DIFPRE > 0 && DIFPRE > DIFPRE2
 }
 
-//强降
+// 强降
 func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -119,7 +126,7 @@ func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	return DIFPRE < 0 && DIFPRE < DIFPRE2
 }
 
-//为绿柱或前升
+// 为绿柱或前升
 func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
@@ -148,7 +155,7 @@ func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	return false
 }
 
-//为红柱或前降
+// 为红柱或前降
 func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
 		return true
