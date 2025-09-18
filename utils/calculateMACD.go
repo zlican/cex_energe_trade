@@ -133,21 +133,25 @@ func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 || len(DIF) < 3 {
+	if len(histogram) < 3 || len(DIF) < 3 {
 		return true
 	}
 
 	E := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-3]
 
 	DIFPRE := DIF[len(DIF)-2]
 	DIFPRE2 := DIF[len(DIF)-3]
 
-	//当下绿（确定性）
+	//绿
 	if E > 0 {
 		return true
 	}
+	if D > 0 {
+		return true
+	}
 
-	//前者大（确定性）
+	//前者大
 	if DIFPRE > DIFPRE2 {
 		return true
 	}
@@ -162,20 +166,24 @@ func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 || len(DIF) < 3 {
+	if len(histogram) < 3 || len(DIF) < 3 {
 		return true
 	}
 
 	E := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-3]
 
 	DIFPRE := DIF[len(DIF)-2]
 	DIFPRE2 := DIF[len(DIF)-3]
-	//当下红（确定性）
+	//红
 	if E < 0 {
 		return true
 	}
+	if D < 0 {
+		return true
+	}
 
-	//前者小（确定性）
+	//前者小
 	if DIFPRE < DIFPRE2 {
 		return true
 	}
