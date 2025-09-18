@@ -449,7 +449,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "HYPEUSDT", "PAXGUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})
@@ -661,7 +661,7 @@ func runScanLONGOnce(client *futures.Client, maxWorkers int64, wait_sucess_token
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "HYPEUSDT", "DOGEUSDT", "PAXGUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "HYPEUSDT", "PAXGUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})

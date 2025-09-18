@@ -34,11 +34,7 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 		return true
 	}
 	D := histogram[len(histogram)-2]
-	E := histogram[len(histogram)-1]
 
-	if E > 0 {
-		return true
-	}
 	if D > 0 {
 		return true
 	}
@@ -57,11 +53,7 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 		return true
 	}
 	D := histogram[len(histogram)-2]
-	E := histogram[len(histogram)-1]
 
-	if E < 0 {
-		return true
-	}
 	if D < 0 {
 		return true
 	}
@@ -133,11 +125,11 @@ func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 1 || len(DIF) < 3 {
+	if len(histogram) < 2 || len(DIF) < 3 {
 		return true
 	}
 
-	E := histogram[len(histogram)-1]
+	E := histogram[len(histogram)-2]
 
 	DIFPRE := DIF[len(DIF)-2]
 	DIFPRE2 := DIF[len(DIF)-3]
@@ -162,11 +154,11 @@ func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 1 || len(DIF) < 3 {
+	if len(histogram) < 2 || len(DIF) < 3 {
 		return true
 	}
 
-	E := histogram[len(histogram)-1]
+	E := histogram[len(histogram)-2]
 
 	DIFPRE := DIF[len(DIF)-2]
 	DIFPRE2 := DIF[len(DIF)-3]
