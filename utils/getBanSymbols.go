@@ -14,7 +14,7 @@ import (
 // 从 ban 服务返回的内容是一个字符串数组，例如：["BTCUSDT","ETHUSDT"]
 func GetBanList() []string {
 	const (
-		baseURL        = "http://127.0.0.1:9001/ban/list"
+		baseURL        = "http://127.0.0.1:9001/cex/ban/list"
 		maxRetries     = 3
 		requestTimeout = 10 * time.Second
 	)
