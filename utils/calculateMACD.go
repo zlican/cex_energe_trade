@@ -30,12 +30,16 @@ func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) b
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 {
+	if len(histogram) < 3 {
 		return true
 	}
 	D := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-3]
 
 	if D > 0 {
+		return true
+	}
+	if C > 0 {
 		return true
 	}
 
@@ -49,12 +53,16 @@ func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) boo
 	}
 
 	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 2 {
+	if len(histogram) < 3 {
 		return true
 	}
 	D := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-3]
 
 	if D < 0 {
+		return true
+	}
+	if C < 0 {
 		return true
 	}
 	return false
