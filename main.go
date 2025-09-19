@@ -328,15 +328,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceM15 := closesM15[len(closesM15)-1]
 	_, ema25M15Now := utils.CalculateEMA(closesM15, 25)
-	isGolden := utils.IsGolden(closesM15, 6, 13, 5)
-	isDead := utils.IsDead(closesM15, 6, 13, 5)
+	goldenORdifup := utils.IsSmallTFUP(closesM15, 6, 13, 5)
+	deadORdifdown := utils.IsSmallTFDOWN(closesM15, 6, 13, 5)
 	DIFM15UP := utils.IsDIFUP(closesM15, 6, 13, 5)
 	DIFM15DOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 
 	MACDM15 := "RANGE"
-	if priceM15 > ema25M15Now && isGolden && DIFM15UP {
+	if priceM15 > ema25M15Now && DIFM15UP && goldenORdifup {
 		MACDM15 = "BUYMACD"
-	} else if priceM15 < ema25M15Now && isDead && DIFM15DOWN {
+	} else if priceM15 < ema25M15Now && DIFM15DOWN && deadORdifdown {
 		MACDM15 = "SELLMACD"
 	}
 
@@ -536,15 +536,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceH4 := closesH4[len(closesH4)-1]
 	_, ema25H4Now := utils.CalculateEMA(closesH4, 25)
-	isGolden := utils.IsGolden(closesH4, 6, 13, 5)
-	isDead := utils.IsDead(closesH4, 6, 13, 5)
+	goldenORdifup := utils.IsSmallTFUP(closesH4, 6, 13, 5)
+	deadORdifdown := utils.IsSmallTFDOWN(closesH4, 6, 13, 5)
 	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if priceH4 > ema25H4Now && isGolden && DIFH4UP {
+	if priceH4 > ema25H4Now && DIFH4UP && goldenORdifup {
 		MACDH4 = "BUYMACD"
-	} else if priceH4 < ema25H4Now && isDead && DIFH4DOWN {
+	} else if priceH4 < ema25H4Now && DIFH4DOWN && deadORdifdown {
 		MACDH4 = "SELLMACD"
 	}
 

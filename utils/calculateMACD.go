@@ -23,51 +23,6 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-// 绿柱
-func IsGolden(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return true
-	}
-
-	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 {
-		return true
-	}
-	D := histogram[len(histogram)-2]
-	C := histogram[len(histogram)-3]
-
-	if D > 0 {
-		return true
-	}
-	if C > 0 {
-		return true
-	}
-
-	return false
-}
-
-// 红柱
-func IsDead(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
-		return true
-	}
-
-	_, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 {
-		return true
-	}
-	D := histogram[len(histogram)-2]
-	C := histogram[len(histogram)-3]
-
-	if D < 0 {
-		return true
-	}
-	if C < 0 {
-		return true
-	}
-	return false
-}
-
 // DIF正
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < slowPeriod+signalPeriod+1 {
