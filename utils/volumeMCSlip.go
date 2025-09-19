@@ -33,7 +33,7 @@ func VolumeCMCCSlip(ticker24h []Ticker24h, symbols []string) []string {
 			if vol >= 20000000 { // 先过滤掉小成交量
 				cmcc, err := GetCMCCSupply(sym)
 				if (err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data")) || (err == nil && cmcc == float64(0)) {
-					if vol > 70000000 {
+					if vol > 50000000 {
 						result = append(result, sym)
 					}
 					continue
@@ -55,8 +55,6 @@ func CheckVolume(ticker24h []Ticker24h, symbol string, vcount float64) bool {
 	// 构造 map（也可以直接遍历 ticker24h，这里为了复用逻辑）
 
 	//短线vcount 20000000
-	//长线vcount 300000000
-	//大主流vcount 4800000000
 	volumeMap := make(map[string]float64, len(ticker24h))
 	for _, t := range ticker24h {
 		vol, err := strconv.ParseFloat(t.Volume, 64)
@@ -103,7 +101,7 @@ func CheckVolumeCMCC(ticker24h []Ticker24h, symbol string) bool {
 	// 2. 获取 CMCC 流通量
 	cmcc, err := GetCMCCSupply(symbol)
 	if (err != nil && strings.Contains(err.Error(), "no CMCCirculatingSupply data")) || (err == nil && cmcc == float64(0)) {
-		if vol > 70000000 {
+		if vol > 50000000 {
 			return true
 		}
 		return false
