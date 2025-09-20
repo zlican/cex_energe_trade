@@ -298,7 +298,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if DIFH1UP {
 		MACDH1 = "BUYMACD"
 	} else if DIFH1DOWN {
-		if sym != "BTCUSDT" && sym != "ETHUSDT" && sym != "HYPEUSDT" { //除BEH不做空
+		if sym != "BTCUSDT" && sym != "ETHUSDT" { //除BE不做空
 			return types.CoinIndicator{}, false
 		}
 		MACDH1 = "SELLMACD"
@@ -407,7 +407,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "HYPEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})
