@@ -291,16 +291,14 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		progressLogger.Printf("%s 1h 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
-	priceH1 := closesH1[len(closesH1)-1]
-	_, ema25H1Now := utils.CalculateEMA(closesH1, 25)
 	DIFH1UP := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFH1DOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
 	MACDH1 := ""
-	if priceH1 > ema25H1Now && DIFH1UP {
+	if DIFH1UP {
 		MACDH1 = "BUYMACD"
-	} else if priceH1 < ema25H1Now && DIFH1DOWN {
-		if sym != "BTCUSDT" && sym != "ETHUSDT" && sym != "BNBUSDT" && sym != "HYPEUSDT" { //除BEBH不做空
+	} else if DIFH1DOWN {
+		if sym != "BTCUSDT" && sym != "ETHUSDT" && sym != "HYPEUSDT" { //除BEH不做空
 			return types.CoinIndicator{}, false
 		}
 		MACDH1 = "SELLMACD"
@@ -409,7 +407,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "BNBUSDT", "HYPEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "HYPEUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})
@@ -502,15 +500,13 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		progressLogger.Printf("%s 1d 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
-	priceD1 := closesD1[len(closesD1)-1]
-	_, ema25D1Now := utils.CalculateEMA(closesD1, 25)
 	DIFD1UP := utils.IsDIFUP(closesD1, 6, 13, 5)
 	DIFD1DOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 
 	MACDD1 := ""
-	if priceD1 > ema25D1Now && DIFD1UP {
+	if DIFD1UP {
 		MACDD1 = "BUYMACD"
-	} else if priceD1 < ema25D1Now && DIFD1DOWN {
+	} else if DIFD1DOWN {
 		MACDD1 = "SELLMACD"
 	} else {
 		// 1h 不满足趋势，早退
