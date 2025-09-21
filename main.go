@@ -225,7 +225,7 @@ func runScanOnce(client *futures.Client, maxWorkers int64, wait_sucess_token, ch
 				return
 			}
 
-			// analyseSymbolForSignal 会拉 1h/15m/5m/1m 并判断四框架条件
+			// analyseSymbolForSignal 会拉 4h/1h/15m/5m/1m 并判断五框架条件
 			ind, ok := analyseSymbolForSignal(client, c)
 			if !ok {
 				return
@@ -274,7 +274,7 @@ func runScanOnce(client *futures.Client, maxWorkers int64, wait_sucess_token, ch
 	return nil
 }
 
-// analyseSymbolForSignal：一次性检查 1h,15m,5m,1m；只有四个判定全部匹配时返回 true
+// analyseSymbolForSignal：一次性检查 4h, 1h,15m,5m,1m；只有五个判定全部匹配时返回 true
 func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 防止 panic
 	defer func() {
@@ -285,7 +285,43 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 
 	sym := c.Symbol
 
-	// --- STEP A: 先拉 1h（用来做快速筛） ---
+	// --- STEP 0: 4h （共振筛） ---
+	closesH4, err := utils.GetClosesWithFallback(client, sym, "4h")
+	if err != nil || len(closesH4) < 1 {
+		progressLogger.Printf("%s 4h 数据不足或获取失败: %v\n", sym, err)
+		return types.CoinIndicator{}, false
+	}
+	priceH4 := closesH4[len(closesH4)-1]
+	_, ema25H4Now := utils.CalculateEMA(closesH4, 25)
+	goldenORdifupH4 := utils.IsSmallTFUP(closesH4, 6, 13, 5)
+	deadORdifdownH4 := utils.IsSmallTFDOWN(closesH4, 6, 13, 5)
+	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
+	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
+
+	MACDH4 := "RANGE"
+	if priceH4 > ema25H4Now && DIFH4UP && goldenORdifupH4 {
+		MACDH4 = "BUYMACD"
+	} else if priceH4 < ema25H4Now && DIFH4DOWN && deadORdifdownH4 {
+		if sym != "BTCUSDT" && sym != "ETHUSDT" { //除BE不做空
+			return types.CoinIndicator{}, false
+		}
+		MACDH4 = "SELLMACD"
+	} else {
+		return types.CoinIndicator{}, false
+	}
+
+	// 基于 4h 决定本次要查 BUY 还是 SELL
+	isBuy := (MACDH4 == "BUYMACD")
+	validMACD := "BUYMACD"
+	if !isBuy {
+		validMACD = "SELLMACD"
+	}
+	validX := "XBUY"
+	if !isBuy {
+		validX = "XSELL"
+	}
+
+	// --- STEP A: 1h（做第一道筛） ---
 	closesH1, err := utils.GetClosesWithFallback(client, sym, "1h")
 	if err != nil || len(closesH1) < 1 {
 		progressLogger.Printf("%s 1h 数据不足或获取失败: %v\n", sym, err)
@@ -298,24 +334,11 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if DIFH1UP {
 		MACDH1 = "BUYMACD"
 	} else if DIFH1DOWN {
-		if sym != "BTCUSDT" && sym != "ETHUSDT" { //除BE不做空
-			return types.CoinIndicator{}, false
-		}
 		MACDH1 = "SELLMACD"
-	} else {
-		// 1h 不满足趋势，早退
+	}
+	if MACDH1 != validMACD {
+		// 1h 趋势与 4h 不一致 → 早退
 		return types.CoinIndicator{}, false
-	}
-
-	// 基于 1h 决定本次要查 BUY 还是 SELL
-	isBuy := (MACDH1 == "BUYMACD")
-	validMACD := "BUYMACD"
-	if !isBuy {
-		validMACD = "SELLMACD"
-	}
-	validX := "XBUY"
-	if !isBuy {
-		validX = "XSELL"
 	}
 
 	// --- STEP B: 15m （做第二道筛） ---
@@ -339,7 +362,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 
 	if MACDM15 != validMACD {
-		// 15m 趋势与 1h 不一致 → 早退
+		// 15m 趋势与 4h 不一致 → 早退
 		return types.CoinIndicator{}, false
 	}
 
@@ -385,8 +408,8 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		MACDM1 = "XSELL"
 	}
 
-	// 最终条件：1h + 15m + 5m + 1m 满足（按你的要求）
-	if MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD && MACDM1 == validX {
+	// 最终条件：4h + 1h + 15m + 5m + 1m 满足
+	if MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD && MACDM1 == validX {
 		op := "BUY"
 		if !isBuy {
 			op = "SELL"
@@ -434,7 +457,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 			defer wg.Done()
 			defer sem.Release(1)
 
-			// analyseSymbolForSignal 会拉 1d/4h/1h/15m 并判断四框架条件
+			// analyseSymbolForSignal 会拉 3d/1d/4h/1h/15m 并判断四框架条件
 			ind, ok := analyseSymbolMIDForSignal(client, c)
 			if !ok {
 				return
@@ -483,7 +506,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	return nil
 }
 
-// analyseSymbolForSignal：一次性检查 1d 4h 1h 15m；只有四个判定全部匹配时返回 true
+// analyseSymbolForSignal：一次性检查 3d 1d 4h 1h 15m；只有五个判定全部匹配时返回 true
 func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 防止 panic
 	defer func() {
@@ -493,6 +516,40 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}()
 
 	sym := c.Symbol
+
+	// --- STEP 0: 3d （共振筛） ---
+	closesD3, err := utils.GetClosesWithFallback(client, sym, "3d")
+	if err != nil || len(closesD3) < 1 {
+		progressLogger.Printf("%s 3D 数据不足或获取失败: %v\n", sym, err)
+		return types.CoinIndicator{}, false
+	}
+	priceD3 := closesD3[len(closesD3)-1]
+	_, ema25D3Now := utils.CalculateEMA(closesD3, 25)
+	goldenORdifupD3 := utils.IsSmallTFUP(closesD3, 6, 13, 5)
+	deadORdifdownD3 := utils.IsSmallTFDOWN(closesD3, 6, 13, 5)
+	DIFD3UP := utils.IsDIFUP(closesD3, 6, 13, 5)
+	DIFD3DOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
+
+	MACDD3 := "RANGE"
+	if priceD3 > ema25D3Now && DIFD3UP && goldenORdifupD3 {
+		MACDD3 = "BUYMACD"
+	} else if priceD3 < ema25D3Now && DIFD3DOWN && deadORdifdownD3 {
+		MACDD3 = "SELLMACD"
+	} else {
+		// 3d 不满足趋势，早退
+		return types.CoinIndicator{}, false
+	}
+
+	// 基于 3d 决定本次要查 BUY 还是 SELL
+	isBuy := (MACDD3 == "BUYMACD")
+	validMACD := "BUYMACD"
+	if !isBuy {
+		validMACD = "SELLMACD"
+	}
+	validX := "XBUY"
+	if !isBuy {
+		validX = "XSELL"
+	}
 
 	// --- STEP A: 先拉 1d（用来做快速筛） ---
 	closesD1, err := utils.GetClosesWithFallback(client, sym, "1d")
@@ -508,20 +565,11 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		MACDD1 = "BUYMACD"
 	} else if DIFD1DOWN {
 		MACDD1 = "SELLMACD"
-	} else {
-		// 1h 不满足趋势，早退
-		return types.CoinIndicator{}, false
 	}
 
-	// 基于 1h 决定本次要查 BUY 还是 SELL
-	isBuy := (MACDD1 == "BUYMACD")
-	validMACD := "BUYMACD"
-	if !isBuy {
-		validMACD = "SELLMACD"
-	}
-	validX := "XBUY"
-	if !isBuy {
-		validX = "XSELL"
+	if MACDD1 != validMACD {
+		// 1D 趋势与 3D 不一致 → 早退
+		return types.CoinIndicator{}, false
 	}
 
 	// --- STEP B: 15m （做第二道筛） ---
@@ -545,7 +593,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 
 	if MACDH4 != validMACD {
-		// 4H 趋势与 1D 不一致 → 早退
+		// 4H 趋势与 3D 不一致 → 早退
 		return types.CoinIndicator{}, false
 	}
 
@@ -591,8 +639,8 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		MACDM15 = "XSELL"
 	}
 
-	// 最终条件：1d + 4h + 1h + 15m 满足（按你的要求）
-	if MACDD1 == validMACD && MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validX {
+	// 最终条件： 3d + 1d + 4h + 1h + 15m 满足
+	if MACDD3 == validMACD && MACDD1 == validMACD && MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validX {
 		op := "BUY"
 		if !isBuy {
 			op = "SELL"
