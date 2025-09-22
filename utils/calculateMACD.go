@@ -25,7 +25,7 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 
 // DIF正
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
@@ -37,7 +37,7 @@ func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 
 // DIF负
 func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
@@ -49,7 +49,7 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 
 // 强升
 func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 
@@ -66,7 +66,7 @@ func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 
 // 强降
 func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 
@@ -83,7 +83,7 @@ func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 // 为绿柱或前升
 func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 
@@ -116,7 +116,7 @@ func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 // 为红柱或前降
 func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < slowPeriod+signalPeriod+1 {
+	if len(closePrices) < fastPeriod {
 		return true
 	}
 
