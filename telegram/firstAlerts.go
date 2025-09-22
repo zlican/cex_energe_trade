@@ -208,7 +208,7 @@ func AnalyzeNewMessageL(msg SavedMessageL) {
 
 // 把 alert 数据保存到 /alert/add API
 func saveAlertToAPI(category, text, reason string) {
-	url := "http://127.0.0.1:8888/alert/add"
+	url := "http://127.0.0.1:9001/alert/add"
 	body := map[string]string{
 		"category": category, // 短线 / 中线
 		"text":     text,
