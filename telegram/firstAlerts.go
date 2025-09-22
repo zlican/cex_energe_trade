@@ -63,6 +63,7 @@ func sendRawMessage(botToken, chatID, text string) error {
 
 // symbolRegex 用于从文本中抽取交易对（例如 BTCUSDT）
 var symbolRegex = regexp.MustCompile(`([A-Z0-9]{1,10}USDT)`) // 简单规则，覆盖大多数 USDT 交易对
+const customLayout = "2006-01-02 15:04:05"
 
 // ExtractSymbol 从消息文本中提取交易对，返回 (symbol, true) 或 ("", false)
 func ExtractSymbol(text string) (string, bool) {
@@ -132,10 +133,13 @@ func AnalyzeNewMessage(msg SavedMessage) {
 	}
 
 	// 构造告警文本（简洁）
-	alertText := fmt.Sprintf("🔔 短线首次警报 — %s\n原始: %s\n时间: %s\n原因: %s", symbol, msg.Text, msg.Timestamp.Format(time.RFC3339), reason)
+	alertText := fmt.Sprintf("🔔 <短线>\n消息: %s\n时间: %s\n原因: %s", msg.Text, msg.Timestamp.Format(customLayout), reason)
 
 	if err := sendRawMessage(alertBotToken, alertChatID, alertText); err != nil {
 		log.Printf("[Alert] 发送首次警报失败: %v", err)
+	} else {
+		// 保存到 API，category 可选 "短线" 或 "中线"
+		saveAlertToAPI("短线", msg.Text, reason)
 	}
 }
 
@@ -192,9 +196,33 @@ func AnalyzeNewMessageL(msg SavedMessageL) {
 	}
 
 	// 构造告警文本（简洁）
-	alertText := fmt.Sprintf("🔔 中线首次警报 — %s\n原始: %s\n时间: %s\n原因: %s", symbol, msg.Text, msg.Timestamp.Format(time.RFC3339), reason)
+	alertText := fmt.Sprintf("🔔 <中线>\n消息: %s\n时间: %s\n原因: %s", msg.Text, msg.Timestamp.Format(customLayout), reason)
 
 	if err := sendRawMessage(alertBotToken, alertChatID, alertText); err != nil {
 		log.Printf("[Alert] 发送首次警报失败: %v", err)
+	} else {
+		// 保存到 API，category 可选 "短线" 或 "中线"
+		saveAlertToAPI("中线", msg.Text, reason)
+	}
+}
+
+// 把 alert 数据保存到 /alert/add API
+func saveAlertToAPI(category, text, reason string) {
+	url := "http://127.0.0.1:8888/alert/add"
+	body := map[string]string{
+		"category": category, // 短线 / 中线
+		"text":     text,
+		"reason":   reason,
+	}
+
+	data, _ := json.Marshal(body)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		log.Printf("[Alert] 保存到API失败: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[Alert] 保存到API失败, 状态码: %d", resp.StatusCode)
 	}
 }
