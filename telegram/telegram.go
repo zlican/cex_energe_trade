@@ -100,6 +100,9 @@ func AddMessage(msg SavedMessage) {
 		savedMessages.messages = savedMessages.messages[1:]
 	}
 	savedMessages.messages = append(savedMessages.messages, msg)
+
+	// 异步分析刚刚添加的消息（非阻塞）
+	go AnalyzeNewMessage(msg)
 }
 
 // GetLatestMessages 返回最新n条，倒序

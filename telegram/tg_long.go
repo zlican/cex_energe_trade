@@ -94,6 +94,8 @@ func AddMessageL(msg SavedMessageL) {
 		savedMessagesL.messages = savedMessagesL.messages[1:]
 	}
 	savedMessagesL.messages = append(savedMessagesL.messages, msg)
+
+	go AnalyzeNewMessageL(msg)
 }
 
 // GetLatestMessages 返回最新n条，倒序
