@@ -45,6 +45,10 @@ var (
 
 var runScanRunning int32
 var runScanMIDRunning int32
+var BE = []string{
+	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
+	"XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT",
+}
 
 /* ====================== 主函数 ====================== */
 
@@ -302,10 +306,12 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if priceH4 > ema25H4Now && DIFH4UP && goldenORdifupH4 {
 		MACDH4 = "BUYMACD"
 	} else if priceH4 < ema25H4Now && DIFH4DOWN && deadORdifdownH4 {
-		if sym != "BTCUSDT" && sym != "ETHUSDT" { //除BE不做空
+		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
-		MACDH4 = "SELLMACD"
+		if sym != "" {
+			MACDH4 = "SELLMACD"
+		}
 	} else {
 		return types.CoinIndicator{}, false
 	}
@@ -693,7 +699,14 @@ func latestMessagesLongHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
 }
-
+func inBE(sym string) bool {
+	for _, s := range BE {
+		if sym == s {
+			return true
+		}
+	}
+	return false
+}
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
