@@ -403,8 +403,8 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	ma60M1 := utils.CalculateMA(closesM1, 60)
 	DIFUPM1 := utils.IsDIFUP(closesM1, 6, 13, 5)
 	DIFDOWNM1 := utils.IsDIFDOWN(closesM1, 6, 13, 5)
-	ColANDDIFUPM1 := utils.ColANDDIFUP(closesM1, 6, 13, 5)
-	ColANDDIFDOWNM1 := utils.ColANDDIFDOWN(closesM1, 6, 13, 5)
+	ColANDDIFUPM1 := utils.ColANDDIFUPMicro(closesM1, 6, 13, 5)
+	ColANDDIFDOWNM1 := utils.ColANDDIFDOWNMicro(closesM1, 6, 13, 5)
 
 	MACDM1 := ""
 	if priceM1 > ma60M1 && DIFUPM1 && ColANDDIFUPM1 {
@@ -633,8 +633,8 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	ma60M15 := utils.CalculateMA(closesM15, 60)
 	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
 	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
-	ColANDDIFUPM15 := utils.ColANDDIFUP(closesM15, 6, 13, 5)
-	ColANDDIFDOWNM15 := utils.ColANDDIFDOWN(closesM15, 6, 13, 5)
+	ColANDDIFUPM15 := utils.ColANDDIFUPMicro(closesM15, 6, 13, 5)
+	ColANDDIFDOWNM15 := utils.ColANDDIFDOWNMicro(closesM15, 6, 13, 5)
 
 	MACDM15 := ""
 	if priceM15 > ma60M15 && DIFUPM15 && ColANDDIFUPM15 {

@@ -71,6 +71,29 @@ func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 	return false
 }
+func ColANDDIFUPMicro(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < fastPeriod {
+		return true
+	}
+
+	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 || len(DIF) < 3 {
+		return true
+	}
+
+	E := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-3]
+
+	DIFPRE := DIF[len(DIF)-2]
+	DIFPRE2 := DIF[len(DIF)-3]
+
+	//前者大
+	if E > D && DIFPRE > DIFPRE2 {
+		return true
+	}
+
+	return false
+}
 
 // 当下柱线同降 （100%正确）
 func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
@@ -88,6 +111,29 @@ func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 
 	DIFPRE := DIF[len(DIF)-1]
 	DIFPRE2 := DIF[len(DIF)-2]
+
+	//前者小
+	if E < D && DIFPRE < DIFPRE2 {
+		return true
+	}
+
+	return false
+}
+func ColANDDIFDOWNMicro(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
+	if len(closePrices) < fastPeriod {
+		return true
+	}
+
+	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	if len(histogram) < 3 || len(DIF) < 3 {
+		return true
+	}
+
+	E := histogram[len(histogram)-2]
+	D := histogram[len(histogram)-3]
+
+	DIFPRE := DIF[len(DIF)-2]
+	DIFPRE2 := DIF[len(DIF)-3]
 
 	//前者小
 	if E < D && DIFPRE < DIFPRE2 {
