@@ -23,7 +23,7 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-// DIF正
+// DIF正 比较DIF与0值（100%正确）
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
@@ -35,7 +35,7 @@ func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 	return DIF[len(DIF)-1] > 0
 }
 
-// DIF负
+// DIF负 比较DIF与0值（100%正确）
 func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
@@ -47,121 +47,22 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DIF[len(DIF)-1] < 0
 }
 
-// 强升
-func XSTRONGUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(DIF) < 3 {
-		return true
-	}
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-
-	return DIFPRE > 0 && DIFPRE > DIFPRE2
-}
-
-// 强降
-func XSTRONGDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(DIF) < 3 {
-		return true
-	}
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-
-	return DIFPRE < 0 && DIFPRE < DIFPRE2
-}
-
-// 为绿柱或前升
-func IsSmallTFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
-		return true
-	}
-
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-
-	//绿
-	if E > 0 {
-		return true
-	}
-	if D > 0 {
-		return true
-	}
-
-	//前者大
-	if DIFPRE > DIFPRE2 {
-		return true
-	}
-
-	return false
-}
-
-// 为红柱或前降
-func IsSmallTFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
-		return true
-	}
-
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-	//红
-	if E < 0 {
-		return true
-	}
-	if D < 0 {
-		return true
-	}
-
-	//前者小
-	if DIFPRE < DIFPRE2 {
-		return true
-	}
-
-	return false
-}
-
-// 柱线同升
+// 当下柱线同升	（100%正确）
 func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
+	if len(histogram) < 2 || len(DIF) < 2 {
 		return true
 	}
 
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
+	E := histogram[len(histogram)-1]
+	D := histogram[len(histogram)-2]
 
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
+	DIFPRE := DIF[len(DIF)-1]
+	DIFPRE2 := DIF[len(DIF)-2]
 
 	//前者大
 	if E > D && DIFPRE > DIFPRE2 {
@@ -171,22 +72,22 @@ func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	return false
 }
 
-// 柱线同降
+// 当下柱线同降 （100%正确）
 func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
 	}
 
 	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
+	if len(histogram) < 2 || len(DIF) < 2 {
 		return true
 	}
 
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
+	E := histogram[len(histogram)-1]
+	D := histogram[len(histogram)-2]
 
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
+	DIFPRE := DIF[len(DIF)-1]
+	DIFPRE2 := DIF[len(DIF)-2]
 
 	//前者小
 	if E < D && DIFPRE < DIFPRE2 {

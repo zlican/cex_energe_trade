@@ -301,9 +301,9 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if ColANDDIFupH4 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceH4 > ema25H4) {
+	if ColANDDIFupH4 && (sym == "BTCUSDT" || priceH4 > ema25H4) {
 		MACDH4 = "BUYMACD"
-	} else if ColANDDIFdownH4 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceH4 < ema25H4) {
+	} else if ColANDDIFdownH4 && (sym == "BTCUSDT" || priceH4 < ema25H4) {
 		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
@@ -353,15 +353,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceM15 := closesM15[len(closesM15)-1]
 	_, ema25M15Now := utils.CalculateEMA(closesM15, 25)
-	goldenORdifup := utils.IsSmallTFUP(closesM15, 6, 13, 5)
-	deadORdifdown := utils.IsSmallTFDOWN(closesM15, 6, 13, 5)
+	ColANDDIFupM15 := utils.ColANDDIFUP(closesM15, 6, 13, 5)
+	ColANDDIFdownM15 := utils.ColANDDIFDOWN(closesM15, 6, 13, 5)
 	DIFM15UP := utils.IsDIFUP(closesM15, 6, 13, 5)
 	DIFM15DOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 
 	MACDM15 := "RANGE"
-	if priceM15 > ema25M15Now && DIFM15UP && goldenORdifup {
+	if priceM15 > ema25M15Now && DIFM15UP && ColANDDIFupM15 {
 		MACDM15 = "BUYMACD"
-	} else if priceM15 < ema25M15Now && DIFM15DOWN && deadORdifdown {
+	} else if priceM15 < ema25M15Now && DIFM15DOWN && ColANDDIFdownM15 {
 		MACDM15 = "SELLMACD"
 	}
 
@@ -378,14 +378,13 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceM5 := closesM5[len(closesM5)-1]
 	ma60M5 := utils.CalculateMA(closesM5, 60)
-	_, ema25M5Now := utils.CalculateEMA(closesM5, 25)
-	MACDSmallUP := utils.IsSmallTFUP(closesM5, 6, 13, 5)
-	MACDsmallDOWN := utils.IsSmallTFDOWN(closesM5, 6, 13, 5)
+	DIFUPM5 := utils.IsDIFUP(closesM5, 6, 13, 5)
+	DIFDOWNM5 := utils.IsDIFDOWN(closesM5, 6, 13, 5)
 
 	MACDM5 := "RANGE"
-	if priceM5 > ema25M5Now && priceM5 > ma60M5 && MACDSmallUP {
+	if priceM5 > ma60M5 && DIFUPM5 {
 		MACDM5 = "BUYMACD"
-	} else if priceM5 < ema25M5Now && priceM5 < ma60M5 && MACDsmallDOWN {
+	} else if priceM5 < ma60M5 && DIFDOWNM5 {
 		MACDM5 = "SELLMACD"
 	}
 
@@ -402,13 +401,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceM1 := closesM1[len(closesM1)-1]
 	ma60M1 := utils.CalculateMA(closesM1, 60)
-	XSTRONGUPM1 := utils.XSTRONGUP(closesM1, 6, 13, 5) // 你之前用的名字
-	XSTRONGDOWNM1 := utils.XSTRONGDOWN(closesM1, 6, 13, 5)
+	DIFUPM1 := utils.IsDIFUP(closesM1, 6, 13, 5)
+	DIFDOWNM1 := utils.IsDIFDOWN(closesM1, 6, 13, 5)
+	ColANDDIFUPM1 := utils.ColANDDIFUP(closesM1, 6, 13, 5)
+	ColANDDIFDOWNM1 := utils.ColANDDIFDOWN(closesM1, 6, 13, 5)
 
 	MACDM1 := ""
-	if priceM1 > ma60M1 && XSTRONGUPM1 {
+	if priceM1 > ma60M1 && DIFUPM1 && ColANDDIFUPM1 {
 		MACDM1 = "XBUY"
-	} else if priceM1 < ma60M1 && XSTRONGDOWNM1 {
+	} else if priceM1 < ma60M1 && DIFDOWNM1 && ColANDDIFDOWNM1 {
 		MACDM1 = "XSELL"
 	}
 
@@ -533,9 +534,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if ColANDDIFupD3 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceD3 > ema25D3) {
+	if ColANDDIFupD3 && (sym == "BTCUSDT" || priceD3 > ema25D3) {
 		MACDD3 = "BUYMACD"
-	} else if ColANDDIFdownD3 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceD3 < ema25D3) {
+	} else if ColANDDIFdownD3 && (sym == "BTCUSDT" || priceD3 < ema25D3) {
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
@@ -574,7 +575,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		return types.CoinIndicator{}, false
 	}
 
-	// --- STEP B: 15m （做第二道筛） ---
+	// --- STEP B: 4H（做第二道筛） ---
 	closesH4, err := utils.GetClosesWithFallback(client, sym, "4h")
 	if err != nil || len(closesH4) < 1 {
 		progressLogger.Printf("%s 4H 数据不足或获取失败: %v\n", sym, err)
@@ -582,15 +583,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceH4 := closesH4[len(closesH4)-1]
 	_, ema25H4Now := utils.CalculateEMA(closesH4, 25)
-	goldenORdifup := utils.IsSmallTFUP(closesH4, 6, 13, 5)
-	deadORdifdown := utils.IsSmallTFDOWN(closesH4, 6, 13, 5)
+	ColANDDIFUPH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
+	ColANDDIFDOWNH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if priceH4 > ema25H4Now && DIFH4UP && goldenORdifup {
+	if priceH4 > ema25H4Now && DIFH4UP && ColANDDIFUPH4 {
 		MACDH4 = "BUYMACD"
-	} else if priceH4 < ema25H4Now && DIFH4DOWN && deadORdifdown {
+	} else if priceH4 < ema25H4Now && DIFH4DOWN && ColANDDIFDOWNH4 {
 		MACDH4 = "SELLMACD"
 	}
 
@@ -607,14 +608,13 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceH1 := closesH1[len(closesH1)-1]
 	ma60H1 := utils.CalculateMA(closesH1, 60)
-	_, ema25H1Now := utils.CalculateEMA(closesH1, 25)
-	MACDSmallUP := utils.IsSmallTFUP(closesH1, 6, 13, 5)
-	MACDsmallDOWN := utils.IsSmallTFDOWN(closesH1, 6, 13, 5)
+	DIFUPH1 := utils.IsDIFUP(closesH1, 6, 13, 5)
+	DIFDOWNH1 := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
 	MACDH1 := "RANGE"
-	if priceH1 > ema25H1Now && priceH1 > ma60H1 && MACDSmallUP {
+	if priceH1 > ma60H1 && DIFUPH1 {
 		MACDH1 = "BUYMACD"
-	} else if priceH1 < ema25H1Now && priceH1 < ma60H1 && MACDsmallDOWN {
+	} else if priceH1 < ma60H1 && DIFDOWNH1 {
 		MACDH1 = "SELLMACD"
 	}
 
@@ -631,13 +631,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceM15 := closesM15[len(closesM15)-1]
 	ma60M15 := utils.CalculateMA(closesM15, 60)
-	XSTRONGUPM15 := utils.XSTRONGUP(closesM15, 6, 13, 5) // 你之前用的名字
-	XSTRONGDOWNM15 := utils.XSTRONGDOWN(closesM15, 6, 13, 5)
+	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
+	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
+	ColANDDIFUPM15 := utils.ColANDDIFUP(closesM15, 6, 13, 5)
+	ColANDDIFDOWNM15 := utils.ColANDDIFDOWN(closesM15, 6, 13, 5)
 
 	MACDM15 := ""
-	if priceM15 > ma60M15 && XSTRONGUPM15 {
+	if priceM15 > ma60M15 && DIFUPM15 && ColANDDIFUPM15 {
 		MACDM15 = "XBUY"
-	} else if priceM15 < ma60M15 && XSTRONGDOWNM15 {
+	} else if priceM15 < ma60M15 && DIFDOWNM15 && ColANDDIFDOWNM15 {
 		MACDM15 = "XSELL"
 	}
 
