@@ -295,13 +295,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		progressLogger.Printf("%s 4h 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
+	priceH4 := closesH4[len(closesH4)-1]
+	_, ema25H4 := utils.CalculateEMA(closesH4, 25)
 	ColANDDIFupH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
 	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if ColANDDIFupH4 {
+	if ColANDDIFupH4 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceH4 > ema25H4) {
 		MACDH4 = "BUYMACD"
-	} else if ColANDDIFdownH4 {
+	} else if ColANDDIFdownH4 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceH4 < ema25H4) {
 		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
@@ -525,13 +527,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		progressLogger.Printf("%s 3D 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
+	priceD3 := closesD3[len(closesD3)-1]
+	_, ema25D3 := utils.CalculateEMA(closesD3, 25)
 	ColANDDIFupD3 := utils.ColANDDIFUP(closesD3, 6, 13, 5)
 	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if ColANDDIFupD3 {
+	if ColANDDIFupD3 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceD3 > ema25D3) {
 		MACDD3 = "BUYMACD"
-	} else if ColANDDIFdownD3 {
+	} else if ColANDDIFdownD3 && ((sym == "BTCUSDT" || sym == "ETHUSDT") || priceD3 < ema25D3) {
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
