@@ -295,17 +295,13 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		progressLogger.Printf("%s 4h 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
-	priceH4 := closesH4[len(closesH4)-1]
-	_, ema25H4Now := utils.CalculateEMA(closesH4, 25)
-	goldenORdifupH4 := utils.IsSmallTFUP(closesH4, 6, 13, 5)
-	deadORdifdownH4 := utils.IsSmallTFDOWN(closesH4, 6, 13, 5)
-	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
-	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
+	ColANDDIFupH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
+	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if priceH4 > ema25H4Now && DIFH4UP && goldenORdifupH4 {
+	if ColANDDIFupH4 {
 		MACDH4 = "BUYMACD"
-	} else if priceH4 < ema25H4Now && DIFH4DOWN && deadORdifdownH4 {
+	} else if ColANDDIFdownH4 {
 		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
@@ -529,17 +525,13 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		progressLogger.Printf("%s 3D 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
-	priceD3 := closesD3[len(closesD3)-1]
-	_, ema25D3Now := utils.CalculateEMA(closesD3, 25)
-	goldenORdifupD3 := utils.IsSmallTFUP(closesD3, 6, 13, 5)
-	deadORdifdownD3 := utils.IsSmallTFDOWN(closesD3, 6, 13, 5)
-	DIFD3UP := utils.IsDIFUP(closesD3, 6, 13, 5)
-	DIFD3DOWN := utils.IsDIFDOWN(closesD3, 6, 13, 5)
+	ColANDDIFupD3 := utils.ColANDDIFUP(closesD3, 6, 13, 5)
+	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if priceD3 > ema25D3Now && DIFD3UP && goldenORdifupD3 {
+	if ColANDDIFupD3 {
 		MACDD3 = "BUYMACD"
-	} else if priceD3 < ema25D3Now && DIFD3DOWN && deadORdifdownD3 {
+	} else if ColANDDIFdownD3 {
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
