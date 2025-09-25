@@ -301,9 +301,9 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if ColANDDIFupH4 && (sym == "BTCUSDT" || priceH4 > ema25H4) {
+	if ColANDDIFupH4 && priceH4 > ema25H4 {
 		MACDH4 = "BUYMACD"
-	} else if ColANDDIFdownH4 && (sym == "BTCUSDT" || priceH4 < ema25H4) {
+	} else if ColANDDIFdownH4 && priceH4 < ema25H4 {
 		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
@@ -534,9 +534,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if ColANDDIFupD3 && (sym == "BTCUSDT" || priceD3 > ema25D3) {
+	if ColANDDIFupD3 && priceD3 > ema25D3 {
 		MACDD3 = "BUYMACD"
-	} else if ColANDDIFdownD3 && (sym == "BTCUSDT" || priceD3 < ema25D3) {
+	} else if ColANDDIFdownD3 && priceD3 < ema25D3 {
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
