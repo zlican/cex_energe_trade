@@ -46,8 +46,7 @@ var (
 var runScanRunning int32
 var runScanMIDRunning int32
 var BE = []string{
-	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",
-	"XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT",
+	"BTCUSDT", "ETHUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -306,7 +305,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if ColANDDIFupH4 && priceH4 > ema25H4 && DIFUPH4 {
 		MACDH4 = "BUYMACD"
 	} else if ColANDDIFdownH4 && priceH4 < ema25H4 && DIFDOWNH4 {
-		if !inBE(sym) { //只做空八大
+		if !inBE(sym) { //只做空BE
 			return types.CoinIndicator{}, false
 		}
 		if sym != "" {
@@ -541,6 +540,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	if ColANDDIFupD3 && priceD3 > ema25D3 && DIFUPD3 {
 		MACDD3 = "BUYMACD"
 	} else if ColANDDIFdownD3 && priceD3 < ema25D3 && DIFDOWND3 {
+		if !inBE(sym) { //只做空BE
+			return types.CoinIndicator{}, false
+		}
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
