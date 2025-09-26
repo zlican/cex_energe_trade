@@ -305,9 +305,9 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if ColANDDIFupH4 && priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDH4 = "BUYMACD"
 	} else if ColANDDIFdownH4 && priceH4 < MA60H4 && DIFDOWNH4 {
-		/* 		if !inBE(sym) { //只做空BE
+		if !inBE(sym) { //只做空BE
 			return types.CoinIndicator{}, false
-		} */
+		}
 		if sym != "" {
 			MACDH4 = "SELLMACD"
 		}
@@ -542,9 +542,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	if ColANDDIFupD3 && priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDD3 = "BUYMACD"
 	} else if ColANDDIFdownD3 && priceD3 < MA60D3 && DIFDOWND3 {
-		/* 		if !inBE(sym) { //只做空BE
+		if !inBE(sym) { //只做空BE
 			return types.CoinIndicator{}, false
-		} */
+		}
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
