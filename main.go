@@ -34,7 +34,7 @@ var (
 	long_energe_bot      = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //CEX中线
 	chatID               = "6074996357"
 
-	smallVol       = 50000000 //5千万
+	smallVol       = 30000000 //3千万
 	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	topGainers     = []string{}          //涨幅榜
@@ -295,19 +295,19 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		return types.CoinIndicator{}, false
 	}
 	priceH4 := closesH4[len(closesH4)-1]
-	_, ema25H4 := utils.CalculateEMA(closesH4, 25)
+	MA60H4 := utils.CalculateMA(closesH4, 60)
 	ColANDDIFupH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
 	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 	DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if ColANDDIFupH4 && priceH4 > ema25H4 && DIFUPH4 {
+	if ColANDDIFupH4 && priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDH4 = "BUYMACD"
-	} else if ColANDDIFdownH4 && priceH4 < ema25H4 && DIFDOWNH4 {
-		if !inBE(sym) { //只做空BE
+	} else if ColANDDIFdownH4 && priceH4 < MA60H4 && DIFDOWNH4 {
+		/* 		if !inBE(sym) { //只做空BE
 			return types.CoinIndicator{}, false
-		}
+		} */
 		if sym != "" {
 			MACDH4 = "SELLMACD"
 		}
@@ -332,13 +332,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		progressLogger.Printf("%s 1h 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
+	priceH1 := closesH1[len(closesH1)-1]
 	DIFH1UP := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFH1DOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
+	MA60H1 := utils.CalculateMA(closesH1, 60)
 
 	MACDH1 := ""
-	if DIFH1UP {
+	if DIFH1UP && priceH1 > MA60H1 { //MA60	+	DIF水上
 		MACDH1 = "BUYMACD"
-	} else if DIFH1DOWN {
+	} else if DIFH1DOWN && priceH1 < MA60H1 {
 		MACDH1 = "SELLMACD"
 	}
 	if MACDH1 != validMACD {
@@ -353,16 +355,16 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		return types.CoinIndicator{}, false
 	}
 	priceM15 := closesM15[len(closesM15)-1]
-	_, ema25M15Now := utils.CalculateEMA(closesM15, 25)
+	MA60M15 := utils.CalculateMA(closesM15, 60)
 	ColANDDIFupM15 := utils.ColANDDIFUP(closesM15, 6, 13, 5)
 	ColANDDIFdownM15 := utils.ColANDDIFDOWN(closesM15, 6, 13, 5)
 	DIFM15UP := utils.IsDIFUP(closesM15, 6, 13, 5)
 	DIFM15DOWN := utils.IsDIFDOWN(closesM15, 6, 13, 5)
 
 	MACDM15 := "RANGE"
-	if priceM15 > ema25M15Now && DIFM15UP && ColANDDIFupM15 {
+	if priceM15 > MA60M15 && DIFM15UP && ColANDDIFupM15 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDM15 = "BUYMACD"
-	} else if priceM15 < ema25M15Now && DIFM15DOWN && ColANDDIFdownM15 {
+	} else if priceM15 < MA60M15 && DIFM15DOWN && ColANDDIFdownM15 {
 		MACDM15 = "SELLMACD"
 	}
 
@@ -383,7 +385,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	DIFDOWNM5 := utils.IsDIFDOWN(closesM5, 6, 13, 5)
 
 	MACDM5 := "RANGE"
-	if priceM5 > ma60M5 && DIFUPM5 {
+	if priceM5 > ma60M5 && DIFUPM5 { //MA60	+	DIF水上
 		MACDM5 = "BUYMACD"
 	} else if priceM5 < ma60M5 && DIFDOWNM5 {
 		MACDM5 = "SELLMACD"
@@ -408,7 +410,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	ColANDDIFDOWNM1 := utils.ColANDDIFDOWNMicro(closesM1, 6, 13, 5)
 
 	MACDM1 := ""
-	if priceM1 > ma60M1 && DIFUPM1 && ColANDDIFUPM1 {
+	if priceM1 > ma60M1 && DIFUPM1 && ColANDDIFUPM1 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDM1 = "XBUY"
 	} else if priceM1 < ma60M1 && DIFDOWNM1 && ColANDDIFDOWNM1 {
 		MACDM1 = "XSELL"
@@ -530,19 +532,19 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		return types.CoinIndicator{}, false
 	}
 	priceD3 := closesD3[len(closesD3)-1]
-	_, ema25D3 := utils.CalculateEMA(closesD3, 25)
+	MA60D3 := utils.CalculateMA(closesD3, 60)
 	ColANDDIFupD3 := utils.ColANDDIFUP(closesD3, 6, 13, 5)
 	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 	DIFUPD3 := utils.IsDIFUP(closesD3, 6, 13, 5)
 	DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if ColANDDIFupD3 && priceD3 > ema25D3 && DIFUPD3 {
+	if ColANDDIFupD3 && priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDD3 = "BUYMACD"
-	} else if ColANDDIFdownD3 && priceD3 < ema25D3 && DIFDOWND3 {
-		if !inBE(sym) { //只做空BE
+	} else if ColANDDIFdownD3 && priceD3 < MA60D3 && DIFDOWND3 {
+		/* 		if !inBE(sym) { //只做空BE
 			return types.CoinIndicator{}, false
-		}
+		} */
 		MACDD3 = "SELLMACD"
 	} else {
 		// 3d 不满足趋势，早退
@@ -566,13 +568,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		progressLogger.Printf("%s 1d 数据不足或获取失败: %v\n", sym, err)
 		return types.CoinIndicator{}, false
 	}
+	priceD1 := closesD1[len(closesD1)-1]
 	DIFD1UP := utils.IsDIFUP(closesD1, 6, 13, 5)
 	DIFD1DOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
+	MA60D1 := utils.CalculateMA(closesD1, 60)
 
 	MACDD1 := ""
-	if DIFD1UP {
+	if DIFD1UP && priceD1 > MA60D1 { //MA60	+	DIF水上
 		MACDD1 = "BUYMACD"
-	} else if DIFD1DOWN {
+	} else if DIFD1DOWN && priceD1 < MA60D1 {
 		MACDD1 = "SELLMACD"
 	}
 
@@ -588,16 +592,16 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		return types.CoinIndicator{}, false
 	}
 	priceH4 := closesH4[len(closesH4)-1]
-	_, ema25H4Now := utils.CalculateEMA(closesH4, 25)
+	MA60H4 := utils.CalculateMA(closesH4, 60)
 	ColANDDIFUPH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
 	ColANDDIFDOWNH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 	DIFH4UP := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFH4DOWN := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if priceH4 > ema25H4Now && DIFH4UP && ColANDDIFUPH4 {
+	if priceH4 > MA60H4 && DIFH4UP && ColANDDIFUPH4 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDH4 = "BUYMACD"
-	} else if priceH4 < ema25H4Now && DIFH4DOWN && ColANDDIFDOWNH4 {
+	} else if priceH4 < MA60H4 && DIFH4DOWN && ColANDDIFDOWNH4 {
 		MACDH4 = "SELLMACD"
 	}
 
@@ -618,7 +622,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	DIFDOWNH1 := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
 	MACDH1 := "RANGE"
-	if priceH1 > ma60H1 && DIFUPH1 {
+	if priceH1 > ma60H1 && DIFUPH1 { //MA60	+	DIF水上
 		MACDH1 = "BUYMACD"
 	} else if priceH1 < ma60H1 && DIFDOWNH1 {
 		MACDH1 = "SELLMACD"
@@ -643,7 +647,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	ColANDDIFDOWNM15 := utils.ColANDDIFDOWNMicro(closesM15, 6, 13, 5)
 
 	MACDM15 := ""
-	if priceM15 > ma60M15 && DIFUPM15 && ColANDDIFUPM15 {
+	if priceM15 > ma60M15 && DIFUPM15 && ColANDDIFUPM15 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDM15 = "XBUY"
 	} else if priceM15 < ma60M15 && DIFDOWNM15 && ColANDDIFDOWNM15 {
 		MACDM15 = "XSELL"
