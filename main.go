@@ -46,7 +46,7 @@ var (
 var runScanRunning int32
 var runScanMIDRunning int32
 var BE = []string{
-	"BTCUSDT", "ETHUSDT",
+	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -67,18 +67,11 @@ func main() {
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
 
-	//测试
-	top := utils.GetDailyGainers(10)
-	fmt.Println("今日UTC涨幅榜TOP10:")
-	for i, s := range top {
-		fmt.Printf("%2d. %s\n", i+1, s)
-	}
-
 	//启动涨幅榜获取
 	chTopGainers := make(chan []string)
 	chTicker24h := make(chan []utils.Ticker24h)
-	topGainers, ticker24h = utils.GetTopGainers()
-	go utils.StartTopGainersFetcher(chTopGainers, chTicker24h)
+	topGainers, ticker24h = utils.GetDailyGainers(10)
+	go utils.StartTopGainersUTCFetcher(chTopGainers, chTicker24h)
 	go func() {
 		for Symbols := range chTopGainers {
 			topGainers = Symbols
@@ -312,7 +305,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if ColANDDIFupH4 && priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDH4 = "BUYMACD"
 	} else if ColANDDIFdownH4 && priceH4 < MA60H4 && DIFDOWNH4 {
-		if !inBE(sym) { //只做空BE
+		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
 		if sym != "" {
@@ -549,7 +542,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	if ColANDDIFupD3 && priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDD3 = "BUYMACD"
 	} else if ColANDDIFdownD3 && priceD3 < MA60D3 && DIFDOWND3 {
-		if !inBE(sym) { //只做空BE
+		if !inBE(sym) { //只做空八大
 			return types.CoinIndicator{}, false
 		}
 		MACDD3 = "SELLMACD"
