@@ -34,7 +34,7 @@ var (
 	long_energe_bot      = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //CEX中线
 	chatID               = "6074996357"
 
-	smallVol       = 30000000 //3千万
+	smallVol       = 70000000 //7千万
 	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	topGainers     = []string{}          //涨幅榜
@@ -46,7 +46,7 @@ var (
 var runScanRunning int32
 var runScanMIDRunning int32
 var BE = []string{
-	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT",
+	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "HYPEUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -305,7 +305,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if ColANDDIFupH4 && priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDH4 = "BUYMACD"
 	} else if ColANDDIFdownH4 && priceH4 < MA60H4 && DIFDOWNH4 {
-		if !inBE(sym) { //只做空八大
+		if !inBE(sym) {
 			return types.CoinIndicator{}, false
 		}
 		if sym != "" {
@@ -542,7 +542,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	if ColANDDIFupD3 && priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上	 +	 当下柱线同向
 		MACDD3 = "BUYMACD"
 	} else if ColANDDIFdownD3 && priceD3 < MA60D3 && DIFDOWND3 {
-		if !inBE(sym) { //只做空八大
+		if !inBE(sym) {
 			return types.CoinIndicator{}, false
 		}
 		MACDD3 = "SELLMACD"
