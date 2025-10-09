@@ -67,6 +67,13 @@ func main() {
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
 
+	//测试
+	top := utils.GetDailyGainers(10)
+	fmt.Println("今日UTC涨幅榜TOP10:")
+	for i, s := range top {
+		fmt.Printf("%2d. %s\n", i+1, s)
+	}
+
 	//启动涨幅榜获取
 	chTopGainers := make(chan []string)
 	chTicker24h := make(chan []utils.Ticker24h)
