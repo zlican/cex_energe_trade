@@ -159,7 +159,7 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 		}
 
 		// 确保 主流存在
-		var BE = []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT"}
+		var BE = []string{"BTCUSDT", "ETHUSDT"}
 		for _, mustHave := range BE {
 			if _, exists := symbolSet[mustHave]; !exists {
 				candidates = append(candidates, types.Candidate{

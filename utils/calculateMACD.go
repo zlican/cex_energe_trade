@@ -29,10 +29,10 @@ func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bo
 		return true
 	}
 	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(DIF) < 1 {
+	if len(DIF) < 2 {
 		return true
 	}
-	return DIF[len(DIF)-1] > 0
+	return DIF[len(DIF)-2] > 0
 }
 
 // DIF负 比较DIF与0值（100%正确）
@@ -41,10 +41,10 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 		return true
 	}
 	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(DIF) < 1 {
+	if len(DIF) < 2 {
 		return true
 	}
-	return DIF[len(DIF)-1] < 0
+	return DIF[len(DIF)-2] < 0
 }
 
 // 当下柱线同升	（100%正确）

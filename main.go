@@ -46,7 +46,7 @@ var (
 var runScanRunning int32
 var runScanMIDRunning int32
 var BE = []string{
-	"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "HYPEUSDT",
+	"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "PAXGUSDT", "DOGEUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -438,7 +438,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "HYPEUSDT", "PAXGUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "PAXGUSDT", "DOGEUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})
