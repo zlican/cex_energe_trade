@@ -46,7 +46,7 @@ var (
 var runScanRunning int32
 var runScanMIDRunning int32
 var BE = []string{
-	"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "PAXGUSDT", "DOGEUSDT",
+	"BTCUSDT", "ETHUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -303,7 +303,7 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	if priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上
 		MACDH4 = "BUYMACD"
 	} else if priceH4 < MA60H4 && DIFDOWNH4 {
-		if !inBE(sym) {
+		if !inBE(sym) { //只能空BE
 			return types.CoinIndicator{}, false
 		}
 		if sym != "" {
@@ -516,7 +516,7 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	if priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上
 		MACDD3 = "BUYMACD"
 	} else if priceD3 < MA60D3 && DIFDOWND3 {
-		if !inBE(sym) {
+		if !inBE(sym) { //只能空BE
 			return types.CoinIndicator{}, false
 		}
 		MACDD3 = "SELLMACD"
