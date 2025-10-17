@@ -112,16 +112,16 @@ func main() {
 		}
 		// 计算下一次对齐时间
 		now := time.Now()
-		nextAligned := now.Truncate(time.Minute).Add(time.Minute)
+		nextAligned := now.Truncate(5 * time.Minute).Add(5 * time.Minute)
 		delay := time.Until(nextAligned)
 		time.Sleep(delay)
 
 		// 进入每分钟循环（主循环在该 goroutine 内执行）
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
 		for t := range ticker.C {
-			progressLogger.Printf("[runScan] 每1分钟触发: %s", t.Format("15:04:05"))
+			progressLogger.Printf("[runScan] 每5分钟触发: %s", t.Format("15:04:05"))
 
 			// 如果上一次还在跑，则跳过本次（非阻塞）
 			if !atomic.CompareAndSwapInt32(&runScanRunning, 0, 1) {
@@ -147,16 +147,16 @@ func main() {
 		}
 		// 计算下一次对齐时间
 		now := time.Now()
-		nextAligned := now.Truncate(15 * time.Minute).Add(15 * time.Minute)
+		nextAligned := now.Truncate(60 * time.Minute).Add(60 * time.Minute)
 		delay := time.Until(nextAligned)
 		time.Sleep(delay)
 
 		// 进入每分钟循环（主循环在该 goroutine 内执行）
-		ticker := time.NewTicker(15 * time.Minute)
+		ticker := time.NewTicker(60 * time.Minute)
 		defer ticker.Stop()
 
 		for t := range ticker.C {
-			progressLogger.Printf("[runScanMID] 每15分钟触发: %s", t.Format("15:04:05"))
+			progressLogger.Printf("[runScanMID] 每小时触发: %s", t.Format("15:04:05"))
 
 			// 如果上一次还在跑，则跳过本次（非阻塞）
 			if !atomic.CompareAndSwapInt32(&runScanMIDRunning, 0, 1) {
@@ -277,7 +277,7 @@ func runScanOnce(client *futures.Client, maxWorkers int64, wait_sucess_token, ch
 	return nil
 }
 
-// analyseSymbolForSignal：一次性检查 4h, 1h,15m,5m,1m；只有五个判定全部匹配时返回 true
+// analyseSymbolForSignal：一次性检查 4h, 1h,15m,5m；只有四个判定全部匹配时返回 true
 func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 防止 panic
 	defer func() {
@@ -296,15 +296,13 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceH4 := closesH4[len(closesH4)-1]
 	MA60H4 := utils.CalculateMA(closesH4, 60)
-	ColANDDIFupH4 := utils.ColANDDIFUP(closesH4, 6, 13, 5)
-	ColANDDIFdownH4 := utils.ColANDDIFDOWN(closesH4, 6, 13, 5)
 	DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
 	MACDH4 := "RANGE"
-	if ColANDDIFupH4 && priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上	 +	 当下柱线同向
+	if priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上
 		MACDH4 = "BUYMACD"
-	} else if ColANDDIFdownH4 && priceH4 < MA60H4 && DIFDOWNH4 {
+	} else if priceH4 < MA60H4 && DIFDOWNH4 {
 		if !inBE(sym) {
 			return types.CoinIndicator{}, false
 		}
@@ -320,10 +318,6 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	validMACD := "BUYMACD"
 	if !isBuy {
 		validMACD = "SELLMACD"
-	}
-	validX := "XBUY"
-	if !isBuy {
-		validX = "XSELL"
 	}
 
 	// --- STEP A: 1h（做第一道筛） ---
@@ -381,13 +375,15 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	}
 	priceM5 := closesM5[len(closesM5)-1]
 	ma60M5 := utils.CalculateMA(closesM5, 60)
+	ColANDDIFupM5 := utils.ColANDDIFUP(closesM5, 6, 13, 5)
+	ColANDDIFdownM5 := utils.ColANDDIFDOWN(closesM5, 6, 13, 5)
 	DIFUPM5 := utils.IsDIFUP(closesM5, 6, 13, 5)
 	DIFDOWNM5 := utils.IsDIFDOWN(closesM5, 6, 13, 5)
 
 	MACDM5 := "RANGE"
-	if priceM5 > ma60M5 && DIFUPM5 { //MA60	+	DIF水上
+	if priceM5 > ma60M5 && DIFUPM5 && ColANDDIFupM5 { //MA60	+	DIF水上		+ 当下线柱同向
 		MACDM5 = "BUYMACD"
-	} else if priceM5 < ma60M5 && DIFDOWNM5 {
+	} else if priceM5 < ma60M5 && DIFDOWNM5 && ColANDDIFdownM5 {
 		MACDM5 = "SELLMACD"
 	}
 
@@ -396,28 +392,8 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		return types.CoinIndicator{}, false
 	}
 
-	// --- STEP D: 1m （最终触发条件） ---
-	closesM1, err := utils.GetClosesWithFallback(client, sym, "1m")
-	if err != nil || len(closesM1) == 0 {
-		progressLogger.Printf("%s 1m 数据不足或获取失败: %v\n", sym, err)
-		return types.CoinIndicator{}, false
-	}
-	priceM1 := closesM1[len(closesM1)-1]
-	ma60M1 := utils.CalculateMA(closesM1, 60)
-	DIFUPM1 := utils.IsDIFUP(closesM1, 6, 13, 5)
-	DIFDOWNM1 := utils.IsDIFDOWN(closesM1, 6, 13, 5)
-	ColANDDIFUPM1 := utils.ColANDDIFUPMicro(closesM1, 6, 13, 5)
-	ColANDDIFDOWNM1 := utils.ColANDDIFDOWNMicro(closesM1, 6, 13, 5)
-
-	MACDM1 := ""
-	if priceM1 > ma60M1 && DIFUPM1 && ColANDDIFUPM1 { //MA60	+	DIF水上	+	当下柱线同向
-		MACDM1 = "XBUY"
-	} else if priceM1 < ma60M1 && DIFDOWNM1 && ColANDDIFDOWNM1 {
-		MACDM1 = "XSELL"
-	}
-
-	// 最终条件：4h + 1h + 15m + 5m + 1m 满足
-	if MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD && MACDM1 == validX {
+	// 最终条件：4h + 1h + 15m + 5m  满足
+	if MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validMACD && MACDM5 == validMACD {
 		op := "BUY"
 		if !isBuy {
 			op = "SELL"
@@ -514,7 +490,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	return nil
 }
 
-// analyseSymbolForSignal：一次性检查 3d 1d 4h 1h 15m；只有五个判定全部匹配时返回 true
+// analyseSymbolForSignal：一次性检查 3d 1d 4h 1h；只有四个判定全部匹配时返回 true
 func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types.CoinIndicator, bool) {
 	// 防止 panic
 	defer func() {
@@ -533,15 +509,13 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceD3 := closesD3[len(closesD3)-1]
 	MA60D3 := utils.CalculateMA(closesD3, 60)
-	ColANDDIFupD3 := utils.ColANDDIFUP(closesD3, 6, 13, 5)
-	ColANDDIFdownD3 := utils.ColANDDIFDOWN(closesD3, 6, 13, 5)
 	DIFUPD3 := utils.IsDIFUP(closesD3, 6, 13, 5)
 	DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if ColANDDIFupD3 && priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上	 +	 当下柱线同向
+	if priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上
 		MACDD3 = "BUYMACD"
-	} else if ColANDDIFdownD3 && priceD3 < MA60D3 && DIFDOWND3 {
+	} else if priceD3 < MA60D3 && DIFDOWND3 {
 		if !inBE(sym) {
 			return types.CoinIndicator{}, false
 		}
@@ -556,10 +530,6 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	validMACD := "BUYMACD"
 	if !isBuy {
 		validMACD = "SELLMACD"
-	}
-	validX := "XBUY"
-	if !isBuy {
-		validX = "XSELL"
 	}
 
 	// --- STEP A: 先拉 1d（用来做快速筛） ---
@@ -618,13 +588,15 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	}
 	priceH1 := closesH1[len(closesH1)-1]
 	ma60H1 := utils.CalculateMA(closesH1, 60)
+	ColANDDIFUPH1 := utils.ColANDDIFUP(closesH1, 6, 13, 5)
+	ColANDDIFDOWNH1 := utils.ColANDDIFDOWN(closesH1, 6, 13, 5)
 	DIFUPH1 := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFDOWNH1 := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 
 	MACDH1 := "RANGE"
-	if priceH1 > ma60H1 && DIFUPH1 { //MA60	+	DIF水上
+	if priceH1 > ma60H1 && DIFUPH1 && ColANDDIFUPH1 { //MA60	+	DIF水上		+线柱同向
 		MACDH1 = "BUYMACD"
-	} else if priceH1 < ma60H1 && DIFDOWNH1 {
+	} else if priceH1 < ma60H1 && DIFDOWNH1 && ColANDDIFDOWNH1 {
 		MACDH1 = "SELLMACD"
 	}
 
@@ -633,28 +605,8 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		return types.CoinIndicator{}, false
 	}
 
-	// --- STEP D: 15m （最终触发条件） ---
-	closesM15, err := utils.GetClosesWithFallback(client, sym, "15m")
-	if err != nil || len(closesM15) == 0 {
-		progressLogger.Printf("%s 15m 数据不足或获取失败: %v\n", sym, err)
-		return types.CoinIndicator{}, false
-	}
-	priceM15 := closesM15[len(closesM15)-1]
-	ma60M15 := utils.CalculateMA(closesM15, 60)
-	DIFUPM15 := utils.IsDIFUP(closesM15, 6, 13, 5)
-	DIFDOWNM15 := utils.IsDIFDOWN(closesM15, 6, 13, 5)
-	ColANDDIFUPM15 := utils.ColANDDIFUPMicro(closesM15, 6, 13, 5)
-	ColANDDIFDOWNM15 := utils.ColANDDIFDOWNMicro(closesM15, 6, 13, 5)
-
-	MACDM15 := ""
-	if priceM15 > ma60M15 && DIFUPM15 && ColANDDIFUPM15 { //MA60	+	DIF水上	+	当下柱线同向
-		MACDM15 = "XBUY"
-	} else if priceM15 < ma60M15 && DIFDOWNM15 && ColANDDIFDOWNM15 {
-		MACDM15 = "XSELL"
-	}
-
 	// 最终条件： 3d + 1d + 4h + 1h + 15m 满足
-	if MACDD3 == validMACD && MACDD1 == validMACD && MACDH4 == validMACD && MACDH1 == validMACD && MACDM15 == validX {
+	if MACDD3 == validMACD && MACDD1 == validMACD && MACDH4 == validMACD && MACDH1 == validMACD {
 		op := "BUY"
 		if !isBuy {
 			op = "SELL"
