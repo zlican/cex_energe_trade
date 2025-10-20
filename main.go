@@ -299,10 +299,10 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
-	MACDH4 := "RANGE"
-	if priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上
+	MACDH4 := "RANGE"                               //环境
+	if (inBE(sym) || priceH4 > MA60H4) && DIFUPH4 { //MA60	 +	 DIF水上
 		MACDH4 = "BUYMACD"
-	} else if priceH4 < MA60H4 && DIFDOWNH4 {
+	} else if (inBE(sym) || priceH4 < MA60H4) && DIFDOWNH4 {
 		if !inBE(sym) { //只能空BE
 			return types.CoinIndicator{}, false
 		}
@@ -327,14 +327,16 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 		return types.CoinIndicator{}, false
 	}
 	priceH1 := closesH1[len(closesH1)-1]
+	ColANDDIFUPH1 := utils.ColANDDIFUP(closesH1, 6, 13, 5)
+	ColANDDIFDOWNH1 := utils.ColANDDIFDOWN(closesH1, 6, 13, 5)
 	DIFH1UP := utils.IsDIFUP(closesH1, 6, 13, 5)
 	DIFH1DOWN := utils.IsDIFDOWN(closesH1, 6, 13, 5)
 	MA60H1 := utils.CalculateMA(closesH1, 60)
 
 	MACDH1 := ""
-	if DIFH1UP && priceH1 > MA60H1 { //MA60	+	DIF水上
+	if DIFH1UP && priceH1 > MA60H1 && ColANDDIFUPH1 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDH1 = "BUYMACD"
-	} else if DIFH1DOWN && priceH1 < MA60H1 {
+	} else if DIFH1DOWN && priceH1 < MA60H1 && ColANDDIFDOWNH1 {
 		MACDH1 = "SELLMACD"
 	}
 	if MACDH1 != validMACD {
@@ -513,9 +515,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上
+	if (inBE(sym) || priceD3 > MA60D3) && DIFUPD3 { //MA60	 +	 DIF水上
 		MACDD3 = "BUYMACD"
-	} else if priceD3 < MA60D3 && DIFDOWND3 {
+	} else if (inBE(sym) || priceD3 < MA60D3) && DIFDOWND3 {
 		if !inBE(sym) { //只能空BE
 			return types.CoinIndicator{}, false
 		}
@@ -539,14 +541,16 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 		return types.CoinIndicator{}, false
 	}
 	priceD1 := closesD1[len(closesD1)-1]
+	ColANDDIFUPD1 := utils.ColANDDIFUP(closesD1, 6, 13, 5)
+	ColANDDIFDOWND1 := utils.ColANDDIFDOWN(closesD1, 6, 13, 5)
 	DIFD1UP := utils.IsDIFUP(closesD1, 6, 13, 5)
 	DIFD1DOWN := utils.IsDIFDOWN(closesD1, 6, 13, 5)
 	MA60D1 := utils.CalculateMA(closesD1, 60)
 
 	MACDD1 := ""
-	if DIFD1UP && priceD1 > MA60D1 { //MA60	+	DIF水上
+	if DIFD1UP && priceD1 > MA60D1 && ColANDDIFUPD1 { //MA60	+	DIF水上	+	当下柱线同向
 		MACDD1 = "BUYMACD"
-	} else if DIFD1DOWN && priceD1 < MA60D1 {
+	} else if DIFD1DOWN && priceD1 < MA60D1 && ColANDDIFDOWND1 {
 		MACDD1 = "SELLMACD"
 	}
 

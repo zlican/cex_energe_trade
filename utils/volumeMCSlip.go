@@ -38,7 +38,10 @@ func VolumeCMCCSlip(ticker24h []Ticker24h, symbols []string) []string {
 					}
 					continue
 				} else if err != nil {
-					log.Println("获取流通量错误", err)
+					log.Println("获取流通量错误,但仍7000万有效", err, sym)
+					if vol > 70000000 {
+						result = append(result, sym)
+					}
 					continue
 				}
 				if vol >= cmcc*priceMap[strings.ToUpper(sym)]/5 {
