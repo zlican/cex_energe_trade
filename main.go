@@ -34,7 +34,7 @@ var (
 	long_energe_bot      = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //CEX中线
 	chatID               = "6074996357"
 
-	smallVol       = 70000000 //7千万
+	smallVol       = 80000000 //8千万
 	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	topGainers     = []string{}          //涨幅榜
@@ -67,10 +67,10 @@ func main() {
 	client := binance.NewFuturesClient(apiKey, secretKey)
 	setHTTPClient(client)
 
-	//启动涨幅榜获取
+	//启动涨幅榜获取（16个）
 	chTopGainers := make(chan []string)
 	chTicker24h := make(chan []utils.Ticker24h)
-	topGainers, ticker24h = utils.GetDailyGainers(10)
+	topGainers, ticker24h = utils.GetDailyGainers(16)
 	go utils.StartTopGainersUTCFetcher(chTopGainers, chTicker24h)
 	go func() {
 		for Symbols := range chTopGainers {
@@ -416,7 +416,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	//7秒获K
 	time.Sleep(7 * time.Second)
 	//MID代币列表
-	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "HYPEUSDT", "PAXGUSDT", "DOGEUSDT"}
+	LongSymbols := []string{"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "PAXGUSDT", "DOGEUSDT"}
 	var candidates = []types.Candidate{}
 	for _, sym := range LongSymbols {
 		candidates = append(candidates, types.Candidate{Symbol: sym})
