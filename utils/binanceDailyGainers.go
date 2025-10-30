@@ -98,7 +98,7 @@ func GetDailyGainersConcurrent(limit int, concurrency int) ([]Gainer, error) {
 	}
 
 	// 2) 过滤出 USDT 合约并按成交额阈值过滤（保持你原有逻辑）
-	minQuoteVol := 80000000.0
+	minQuoteVol := 100000000.0
 	candidates := make([]Ticker24h, 0, len(tickers))
 	for _, t := range tickers {
 		if len(t.Symbol) <= 4 {
