@@ -47,7 +47,7 @@ func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) 
 	return DIF[len(DIF)-2] < 0
 }
 
-// 当下柱线同升	（100%正确）
+// 柱线同升	（100%正确）
 func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
@@ -60,42 +60,26 @@ func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 
 	E := histogram[len(histogram)-1]
 	D := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-3]
 
 	DIFPRE := DIF[len(DIF)-1]
 	DIFPRE2 := DIF[len(DIF)-2]
+	DIFPRE3 := DIF[len(DIF)-3]
 
-	//前者大
+	//当前大
 	if E > D && DIFPRE > DIFPRE2 {
 		return true
 	}
 
-	return false
-}
-func ColANDDIFUPMicro(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
-		return true
-	}
-
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-
 	//前者大
-	if E > D && DIFPRE > DIFPRE2 {
+	if D > C && DIFPRE2 > DIFPRE3 {
 		return true
 	}
 
 	return false
 }
 
-// 当下柱线同降 （100%正确）
+// 柱线同降 （100%正确）
 func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
@@ -108,35 +92,19 @@ func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 
 	E := histogram[len(histogram)-1]
 	D := histogram[len(histogram)-2]
+	C := histogram[len(histogram)-3]
 
 	DIFPRE := DIF[len(DIF)-1]
 	DIFPRE2 := DIF[len(DIF)-2]
+	DIFPRE3 := DIF[len(DIF)-3]
 
-	//前者小
+	//当前小
 	if E < D && DIFPRE < DIFPRE2 {
 		return true
 	}
 
-	return false
-}
-func ColANDDIFDOWNMicro(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
-	if len(closePrices) < fastPeriod {
-		return true
-	}
-
-	DIF, _, histogram := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
-	if len(histogram) < 3 || len(DIF) < 3 {
-		return true
-	}
-
-	E := histogram[len(histogram)-2]
-	D := histogram[len(histogram)-3]
-
-	DIFPRE := DIF[len(DIF)-2]
-	DIFPRE2 := DIF[len(DIF)-3]
-
 	//前者小
-	if E < D && DIFPRE < DIFPRE2 {
+	if D < C && DIFPRE2 < DIFPRE3 {
 		return true
 	}
 
