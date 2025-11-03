@@ -116,6 +116,12 @@ func main() {
 		delay := time.Until(nextAligned)
 		time.Sleep(delay)
 
+		// 在启动 ticker 之前，先执行一次对齐任务（确保不会错过第二次）
+		progressLogger.Printf("[runScan] 对齐执行: %s", nextAligned.Format("15:04:05"))
+		if err := runScanOnce(client, 20, wait_energe_botToken, chatID); err != nil {
+			progressLogger.Printf("对齐 runScan 出错: %v", err)
+		}
+
 		// 进入每分钟循环（主循环在该 goroutine 内执行）
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -150,6 +156,12 @@ func main() {
 		nextAligned := now.Truncate(60 * time.Minute).Add(60 * time.Minute)
 		delay := time.Until(nextAligned)
 		time.Sleep(delay)
+
+		// 在启动 ticker 之前，先执行一次对齐任务（确保不会错过第二次）
+		progressLogger.Printf("[runScanMID] 对齐执行: %s", nextAligned.Format("15:04:05"))
+		if err := runScanMIDOnce(client, 20, long_energe_bot, chatID); err != nil {
+			progressLogger.Printf("对齐 runScanMID 出错: %v", err)
+		}
 
 		// 进入每分钟循环（主循环在该 goroutine 内执行）
 		ticker := time.NewTicker(60 * time.Minute)
