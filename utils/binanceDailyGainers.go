@@ -38,7 +38,7 @@ func StartTopGainersUTCFetcher(ch chan<- []string, chTicker24h chan<- []Ticker24
 		defer ticker.Stop()
 
 		for {
-			symbols, ticker24h := GetDailyGainers(10)
+			symbols, ticker24h := GetDailyGainers(8)
 
 			// 防止阻塞，分别推送
 			select {

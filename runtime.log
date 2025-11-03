@@ -6,3 +6,174 @@
 [UTILS] 2025/11/03 18:00:14 getKlines.go:42: 第 1 次拉取 DOGEUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=3d&limit=200&symbol=DOGEUSDT": context deadline exceeded
 [UTILS] 2025/11/03 18:00:15 getKlines.go:42: 第 2 次拉取 DOGEUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=3d&limit=200&symbol=DOGEUSDT": context deadline exceeded
 [UTILS] 2025/11/03 18:00:16 getKlines.go:42: 第 3 次拉取 DOGEUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=3d&limit=200&symbol=DOGEUSDT": context deadline exceeded
+[MAIN] 2025/11/03 18:05:09 main.go:181: [runScan] 每5分钟触发: 18:05:09
+[MAIN] 2025/11/03 18:10:09 main.go:181: [runScan] 每5分钟触发: 18:10:09
+[MAIN] 2025/11/03 18:15:09 main.go:181: [runScan] 每5分钟触发: 18:15:09
+[MAIN] 2025/11/03 18:20:09 main.go:181: [runScan] 每5分钟触发: 18:20:09
+[MAIN] 2025/11/03 18:25:09 main.go:181: [runScan] 每5分钟触发: 18:25:09
+[UTILS] 2025/11/03 18:25:17 getKlines.go:42: 第 1 次拉取 ALPHAUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=ALPHAUSDT": EOF
+[MAIN] 2025/11/03 18:30:09 main.go:181: [runScan] 每5分钟触发: 18:30:09
+[MAIN] 2025/11/03 18:35:09 main.go:181: [runScan] 每5分钟触发: 18:35:09
+[MAIN] 2025/11/03 18:40:09 main.go:181: [runScan] 每5分钟触发: 18:40:09
+[MAIN] 2025/11/03 18:45:09 main.go:181: [runScan] 每5分钟触发: 18:45:09
+[MAIN] 2025/11/03 18:50:09 main.go:181: [runScan] 每5分钟触发: 18:50:09
+[UTILS] 2025/11/03 18:50:17 getKlines.go:42: 第 1 次拉取 PAXGUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=PAXGUSDT": EOF
+[MAIN] 2025/11/03 18:55:09 main.go:181: [runScan] 每5分钟触发: 18:55:09
+[MAIN] 2025/11/03 19:00:09 main.go:181: [runScan] 每5分钟触发: 19:00:09
+[MAIN] 2025/11/03 19:00:17 main.go:227: [runScanMID] 每小时触发: 19:00:17
+[MAIN] 2025/11/03 19:00:19 main.go:341: 已推送信号: ETHUSDT SELL
+[MAIN] 2025/11/03 19:00:27 main.go:566: 已推送信号: ETHUSDT SELL
+[MAIN] 2025/11/03 19:05:09 main.go:181: [runScan] 每5分钟触发: 19:05:09
+[MAIN] 2025/11/03 19:10:09 main.go:181: [runScan] 每5分钟触发: 19:10:09
+[MAIN] 2025/11/03 19:15:09 main.go:181: [runScan] 每5分钟触发: 19:15:09
+[UTILS] 2025/11/03 19:15:17 getKlines.go:42: 第 1 次拉取 SOLUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=SOLUSDT": EOF
+[MAIN] 2025/11/03 19:20:09 main.go:181: [runScan] 每5分钟触发: 19:20:09
+[MAIN] 2025/11/03 19:25:09 main.go:181: [runScan] 每5分钟触发: 19:25:09
+[MAIN] 2025/11/03 19:30:09 main.go:181: [runScan] 每5分钟触发: 19:30:09
+[MAIN] 2025/11/03 19:35:09 main.go:181: [runScan] 每5分钟触发: 19:35:09
+[MAIN] 2025/11/03 19:40:09 main.go:181: [runScan] 每5分钟触发: 19:40:09
+[MAIN] 2025/11/03 19:45:09 main.go:181: [runScan] 每5分钟触发: 19:45:09
+[MAIN] 2025/11/03 19:50:09 main.go:181: [runScan] 每5分钟触发: 19:50:09
+[MAIN] 2025/11/03 19:55:09 main.go:181: [runScan] 每5分钟触发: 19:55:09
+[MAIN] 2025/11/03 20:00:09 main.go:181: [runScan] 每5分钟触发: 20:00:09
+[MAIN] 2025/11/03 20:00:17 main.go:227: [runScanMID] 每小时触发: 20:00:17
+[MAIN] 2025/11/03 20:00:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 20:00:26 main.go:566: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 20:05:09 main.go:181: [runScan] 每5分钟触发: 20:05:09
+[MAIN] 2025/11/03 20:05:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 20:10:09 main.go:181: [runScan] 每5分钟触发: 20:10:09
+[MAIN] 2025/11/03 20:15:09 main.go:181: [runScan] 每5分钟触发: 20:15:09
+[MAIN] 2025/11/03 20:20:09 main.go:181: [runScan] 每5分钟触发: 20:20:09
+[MAIN] 2025/11/03 20:25:09 main.go:181: [runScan] 每5分钟触发: 20:25:09
+[MAIN] 2025/11/03 20:25:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 20:30:09 main.go:181: [runScan] 每5分钟触发: 20:30:09
+[MAIN] 2025/11/03 20:35:09 main.go:181: [runScan] 每5分钟触发: 20:35:09
+[MAIN] 2025/11/03 20:40:09 main.go:181: [runScan] 每5分钟触发: 20:40:09
+[MAIN] 2025/11/03 20:45:09 main.go:181: [runScan] 每5分钟触发: 20:45:09
+[UTILS] 2025/11/03 20:45:17 getKlines.go:42: 第 1 次拉取 ALPHAUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=ALPHAUSDT": EOF
+[MAIN] 2025/11/03 20:50:09 main.go:181: [runScan] 每5分钟触发: 20:50:09
+[MAIN] 2025/11/03 20:55:09 main.go:181: [runScan] 每5分钟触发: 20:55:09
+[UTILS] 2025/11/03 20:55:17 getKlines.go:42: 第 1 次拉取 ETHUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=ETHUSDT": EOF
+[MAIN] 2025/11/03 20:55:19 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:00:09 main.go:181: [runScan] 每5分钟触发: 21:00:09
+[MAIN] 2025/11/03 21:00:17 main.go:227: [runScanMID] 每小时触发: 21:00:17
+[MAIN] 2025/11/03 21:00:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[UTILS] 2025/11/03 21:00:24 getKlines.go:42: 第 1 次拉取 XPLUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=3d&limit=200&symbol=XPLUSDT": EOF
+[MAIN] 2025/11/03 21:00:27 main.go:566: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:05:09 main.go:181: [runScan] 每5分钟触发: 21:05:09
+[MAIN] 2025/11/03 21:05:19 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:10:09 main.go:181: [runScan] 每5分钟触发: 21:10:09
+[MAIN] 2025/11/03 21:15:09 main.go:181: [runScan] 每5分钟触发: 21:15:09
+[MAIN] 2025/11/03 21:20:09 main.go:181: [runScan] 每5分钟触发: 21:20:09
+[MAIN] 2025/11/03 21:20:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:25:09 main.go:181: [runScan] 每5分钟触发: 21:25:09
+[MAIN] 2025/11/03 21:25:19 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:30:09 main.go:181: [runScan] 每5分钟触发: 21:30:09
+[MAIN] 2025/11/03 21:30:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:35:09 main.go:181: [runScan] 每5分钟触发: 21:35:09
+[UTILS] 2025/11/03 21:35:17 getKlines.go:42: 第 1 次拉取 PAXGUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=PAXGUSDT": EOF
+[MAIN] 2025/11/03 21:40:09 main.go:181: [runScan] 每5分钟触发: 21:40:09
+[MAIN] 2025/11/03 21:45:09 main.go:181: [runScan] 每5分钟触发: 21:45:09
+[MAIN] 2025/11/03 21:50:09 main.go:181: [runScan] 每5分钟触发: 21:50:09
+[MAIN] 2025/11/03 21:50:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 21:55:09 main.go:181: [runScan] 每5分钟触发: 21:55:09
+[UTILS] 2025/11/03 21:55:17 getKlines.go:42: 第 1 次拉取 VIDTUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=VIDTUSDT": EOF
+[MAIN] 2025/11/03 22:00:09 main.go:181: [runScan] 每5分钟触发: 22:00:09
+[MAIN] 2025/11/03 22:00:17 main.go:227: [runScanMID] 每小时触发: 22:00:17
+[MAIN] 2025/11/03 22:00:18 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 22:00:26 main.go:566: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/03 22:05:09 main.go:181: [runScan] 每5分钟触发: 22:05:09
+[MAIN] 2025/11/03 22:10:09 main.go:181: [runScan] 每5分钟触发: 22:10:09
+[MAIN] 2025/11/03 22:15:09 main.go:181: [runScan] 每5分钟触发: 22:15:09
+[MAIN] 2025/11/03 22:20:09 main.go:181: [runScan] 每5分钟触发: 22:20:09
+[MAIN] 2025/11/03 22:25:09 main.go:181: [runScan] 每5分钟触发: 22:25:09
+[UTILS] 2025/11/03 22:25:17 getKlines.go:42: 第 1 次拉取 ETHUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=ETHUSDT": EOF
+[MAIN] 2025/11/03 22:30:09 main.go:181: [runScan] 每5分钟触发: 22:30:09
+[MAIN] 2025/11/03 22:35:09 main.go:181: [runScan] 每5分钟触发: 22:35:09
+2025/11/03 22:35:16 获取流通量错误,但仍1亿有效 Get "https://fapi.binance.com/futures/data/openInterestHist?symbol=BNXUSDT&period=1d&limit=1": EOF BNXUSDT
+[MAIN] 2025/11/03 22:40:09 main.go:181: [runScan] 每5分钟触发: 22:40:09
+[MAIN] 2025/11/03 22:45:09 main.go:181: [runScan] 每5分钟触发: 22:45:09
+[MAIN] 2025/11/03 22:50:09 main.go:181: [runScan] 每5分钟触发: 22:50:09
+[MAIN] 2025/11/03 22:55:09 main.go:181: [runScan] 每5分钟触发: 22:55:09
+[UTILS] 2025/11/03 22:55:17 getKlines.go:42: 第 1 次拉取 SOLUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=SOLUSDT": EOF
+[MAIN] 2025/11/03 23:00:09 main.go:181: [runScan] 每5分钟触发: 23:00:09
+[MAIN] 2025/11/03 23:00:17 main.go:227: [runScanMID] 每小时触发: 23:00:17
+[MAIN] 2025/11/03 23:00:18 main.go:341: 已推送信号: PAXGUSDT BUY
+[MAIN] 2025/11/03 23:05:09 main.go:181: [runScan] 每5分钟触发: 23:05:09
+[MAIN] 2025/11/03 23:05:18 main.go:341: 已推送信号: PAXGUSDT BUY
+[MAIN] 2025/11/03 23:10:09 main.go:181: [runScan] 每5分钟触发: 23:10:09
+[MAIN] 2025/11/03 23:15:09 main.go:181: [runScan] 每5分钟触发: 23:15:09
+[UTILS] 2025/11/03 23:15:17 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: Get "https://fapi.binance.com/fapi/v1/klines?interval=4h&limit=200&symbol=JELLYJELLYUSDT": EOF
+[MAIN] 2025/11/03 23:15:19 main.go:341: 已推送信号: BTCUSDT SELL
+[MAIN] 2025/11/03 23:20:09 main.go:181: [runScan] 每5分钟触发: 23:20:09
+[MAIN] 2025/11/03 23:20:19 main.go:341: 已推送信号: ETHUSDT SELL
+[MAIN] 2025/11/03 23:20:20 main.go:341: 已推送信号: BTCUSDT SELL
+[MAIN] 2025/11/03 23:25:09 main.go:181: [runScan] 每5分钟触发: 23:25:09
+[MAIN] 2025/11/03 23:25:18 main.go:341: 已推送信号: ETHUSDT SELL
+[MAIN] 2025/11/03 23:25:19 main.go:341: 已推送信号: BTCUSDT SELL
+[MAIN] 2025/11/03 23:30:09 main.go:181: [runScan] 每5分钟触发: 23:30:09
+[MAIN] 2025/11/03 23:30:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:30:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:30:16 24小时数据获取异常tick24h
+2025/11/03 23:30:16 24小时数据获取异常tick24h
+2025/11/03 23:30:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/03 23:35:09 main.go:181: [runScan] 每5分钟触发: 23:35:09
+[MAIN] 2025/11/03 23:35:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:35:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:35:16 24小时数据获取异常tick24h
+2025/11/03 23:35:16 24小时数据获取异常tick24h
+2025/11/03 23:35:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/03 23:40:09 main.go:181: [runScan] 每5分钟触发: 23:40:09
+[MAIN] 2025/11/03 23:40:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:40:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:40:16 24小时数据获取异常tick24h
+2025/11/03 23:40:16 24小时数据获取异常tick24h
+2025/11/03 23:40:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/03 23:45:09 main.go:181: [runScan] 每5分钟触发: 23:45:09
+[MAIN] 2025/11/03 23:45:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:45:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:45:16 24小时数据获取异常tick24h
+2025/11/03 23:45:16 24小时数据获取异常tick24h
+2025/11/03 23:45:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/03 23:50:09 main.go:181: [runScan] 每5分钟触发: 23:50:09
+[MAIN] 2025/11/03 23:50:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:50:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:50:16 24小时数据获取异常tick24h
+2025/11/03 23:50:16 24小时数据获取异常tick24h
+2025/11/03 23:50:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/03 23:55:09 main.go:181: [runScan] 每5分钟触发: 23:55:09
+[MAIN] 2025/11/03 23:55:16 main.go:256: 新币合约启动失败
+[MAIN] 2025/11/03 23:55:16 main.go:259: 涨幅榜启动失败
+2025/11/03 23:55:16 24小时数据获取异常tick24h
+2025/11/03 23:55:16 24小时数据获取异常tick24h
+2025/11/03 23:55:16 24小时数据获取异常tick24h
+[MAIN] 2025/11/04 00:00:09 main.go:181: [runScan] 每5分钟触发: 00:00:09
+[MAIN] 2025/11/04 00:00:16 main.go:256: 新币合约启动失败
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 KITEUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762186619326. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185887192. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 HYPEUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 DOGEUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[MAIN] 2025/11/04 00:00:17 main.go:227: [runScanMID] 每小时触发: 00:00:17
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 ETHUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:17 getKlines.go:42: 第 1 次拉取 BTCUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185887192. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:18 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[MAIN] 2025/11/04 00:00:20 main.go:341: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/04 00:00:24 main.go:487: 新币合约启动失败
+[UTILS] 2025/11/04 00:00:24 getKlines.go:42: 第 1 次拉取 BNBUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185887192. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:24 getKlines.go:42: 第 1 次拉取 UXLINKUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:24 getKlines.go:42: 第 1 次拉取 0GUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:24 getKlines.go:42: 第 1 次拉取 HYPEUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185887192. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:24 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:00:26 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762185766735. Please use the websocket for live updates to avoid bans.
+[MAIN] 2025/11/04 00:00:28 main.go:566: 已推送信号: BTCUSDT SELL
+[MAIN] 2025/11/04 00:00:31 main.go:566: 已推送信号: ETHUSDT SELL
+[MAIN] 2025/11/04 00:00:32 main.go:566: 已推送信号: JELLYJELLYUSDT BUY
+[MAIN] 2025/11/04 00:05:09 main.go:181: [runScan] 每5分钟触发: 00:05:09
+[MAIN] 2025/11/04 00:05:16 main.go:256: 新币合约启动失败
+[UTILS] 2025/11/04 00:05:17 getKlines.go:42: 第 1 次拉取 HYPEUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762186619326. Please use the websocket for live updates to avoid bans.
+[MAIN] 2025/11/04 00:05:19 main.go:341: 已推送信号: BTCUSDT SELL
+[MAIN] 2025/11/04 00:10:09 main.go:181: [runScan] 每5分钟触发: 00:10:09
+[MAIN] 2025/11/04 00:10:16 main.go:256: 新币合约启动失败
+[UTILS] 2025/11/04 00:10:17 getKlines.go:42: 第 1 次拉取 PAXGUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762186619326. Please use the websocket for live updates to avoid bans.
+[UTILS] 2025/11/04 00:10:17 getKlines.go:42: 第 1 次拉取 JELLYJELLYUSDT K线失败: <APIError> code=-1003, msg=Way too many requests; IP(45.62.172.83) banned until 1762186619326. Please use the websocket for live updates to avoid bans.
+2025/11/04 00:14:09 收到退出信号，程序结束

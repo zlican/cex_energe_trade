@@ -105,6 +105,11 @@ func main() {
 			}
 		}()
 		for Symbols := range chTopGainers {
+			// 跳过空的情况
+			if len(Symbols) == 0 {
+				progressLogger.Println("涨幅榜更新为空，保持旧值")
+				continue
+			}
 			topGainers = Symbols
 		}
 	}()
@@ -116,6 +121,10 @@ func main() {
 			}
 		}()
 		for Symbols := range chTicker24h {
+			if len(Symbols) == 0 {
+				progressLogger.Println("24H交易数据更新为空，保持旧值")
+				continue
+			}
 			ticker24h = Symbols
 		}
 	}()
@@ -131,6 +140,10 @@ func main() {
 			}
 		}()
 		for Symbols := range chNewPereCoins {
+			if len(Symbols) == 0 {
+				progressLogger.Println("新币合约更新为空，保持旧值")
+				continue
+			}
 			newSymbols = Symbols
 		}
 	}()
