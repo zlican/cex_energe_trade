@@ -1,12 +1,5 @@
 package utils
 
-import (
-	"log"
-	"os"
-)
-
-var progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
-
 // 计算 MACD：12EMA快线，26EMA慢线，9MACD信号，返回MACD集合，信号集合，柱子集合
 func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) (macdLine, signalLine, histogram []float64) {
 	emaFast, _ := CalculateEMA(closePrices, fastPeriod)

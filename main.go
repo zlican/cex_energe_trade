@@ -8,11 +8,13 @@ import (
 	"energe/types"
 	"energe/utils"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -52,6 +54,25 @@ var BE = []string{
 /* ====================== 主函数 ====================== */
 
 func main() {
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[FATAL] 程序崩溃: %v\n%s", r, debug.Stack())
+			time.Sleep(5 * time.Second) // 给你时间看日志
+		}
+	}()
+	logFile, err := os.OpenFile("runtime.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	// 初始化主程序日志
+	progressLogger = log.New(multiWriter, "[MAIN] ", log.LstdFlags|log.Lshortfile)
+	log.SetOutput(multiWriter)
+	utils.SetLoggerOutput(multiWriter)
+
 	progressLogger.Println("程序启动...")
 
 	mux := http.NewServeMux()
@@ -59,6 +80,11 @@ func main() {
 	mux.HandleFunc("/api/latest-tg-messages-long", latestMessagesLongHandler)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		if err := http.ListenAndServe(":8888", corsMiddleware(mux)); err != nil {
 			log.Fatalf("HTTP服务器启动失败: %v", err)
 		}
@@ -73,12 +99,22 @@ func main() {
 	topGainers, ticker24h = utils.GetDailyGainers(8)
 	go utils.StartTopGainersUTCFetcher(chTopGainers, chTicker24h)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		for Symbols := range chTopGainers {
 			topGainers = Symbols
 		}
 	}()
 	//启动24小数交易数据获取
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		for Symbols := range chTicker24h {
 			ticker24h = Symbols
 		}
@@ -89,6 +125,11 @@ func main() {
 	newSymbols = utils.GetNewPerpCoins()
 	go utils.StartNewPereFetcher(chNewPereCoins)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		for Symbols := range chNewPereCoins {
 			newSymbols = Symbols
 		}
@@ -99,6 +140,11 @@ func main() {
 	banSymbols = utils.GetBanList()
 	go utils.StartBanListFetcher(chBanList)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		for Symbols := range chBanList {
 			banSymbols = Symbols
 		}
@@ -106,6 +152,11 @@ func main() {
 
 	//短线监控模型
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] runScan goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		progressLogger.Printf("[runScan] 首次立即执行: %s", time.Now().Format("15:04:05"))
 		if err := runScanOnce(client, 20, wait_energe_botToken, chatID); err != nil {
 			progressLogger.Printf("首次 runScan 出错: %v", err)
@@ -147,6 +198,11 @@ func main() {
 
 	//中线监控模型
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				progressLogger.Printf("[panic] runScanMID goroutine 崩溃: %v\n%s", r, debug.Stack())
+			}
+		}()
 		progressLogger.Printf("[runScanMID] 首次立即执行: %s", time.Now().Format("15:04:05"))
 		if err := runScanMIDOnce(client, 20, long_energe_bot, chatID); err != nil {
 			progressLogger.Printf("首次 runScanMID 出错: %v", err)
