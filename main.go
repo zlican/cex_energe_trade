@@ -36,7 +36,7 @@ var (
 	long_energe_bot      = "8429540001:AAH-bqd5aRxAVr37aGOKTzKlTmURdiJvYyg" //CEX中线
 	chatID               = "6074996357"
 
-	smallVol       = 100000000 //1亿
+	smallVol       = 180000000 //1.8亿
 	slipCoinNo     = []string{}
 	progressLogger = log.New(os.Stdout, "[Screener] ", log.LstdFlags)
 	topGainers     = []string{}          //涨幅榜
