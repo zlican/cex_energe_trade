@@ -16,31 +16,31 @@ func CalculateMACD(closePrices []float64, fastPeriod, slowPeriod, signalPeriod i
 	return
 }
 
-// DIF正 比较DIF与0值（100%正确）
+// 水上出阳
 func IsDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
 	}
-	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	DIF, _, HIS := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(DIF) < 1 {
 		return true
 	}
-	return DIF[len(DIF)-1] > 0
+	return DIF[len(DIF)-1] > 0 && HIS[len(HIS)-1] > 0
 }
 
-// DIF负 比较DIF与0值（100%正确）
+// 水下出阴
 func IsDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
 	}
-	DIF, _, _ := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
+	DIF, _, HIS := CalculateMACD(closePrices, fastPeriod, slowPeriod, signalPeriod)
 	if len(DIF) < 1 {
 		return true
 	}
-	return DIF[len(DIF)-1] < 0
+	return DIF[len(DIF)-1] < 0 && HIS[len(HIS)-1] < 0
 }
 
-// 柱线同升	（100%正确）
+// 柱线同升
 func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
@@ -72,7 +72,7 @@ func ColANDDIFUP(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int
 	return false
 }
 
-// 柱线同降 （100%正确）
+// 柱线同降
 func ColANDDIFDOWN(closePrices []float64, fastPeriod, slowPeriod, signalPeriod int) bool {
 	if len(closePrices) < fastPeriod {
 		return true
