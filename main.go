@@ -47,8 +47,8 @@ var (
 
 var runScanRunning int32
 var runScanMIDRunning int32
-var BE = []string{
-	"BTCUSDT", "ETHUSDT",
+var BTC = []string{
+	"BTCUSDT",
 }
 
 /* ====================== 主函数 ====================== */
@@ -380,11 +380,11 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
-	MACDH4 := "RANGE"                               //环境
-	if (inBE(sym) || priceH4 > MA60H4) && DIFUPH4 { //MA60	 +	 DIF水上
+	MACDH4 := "RANGE"                                //环境
+	if (inBTC(sym) || priceH4 > MA60H4) && DIFUPH4 { //MA60	 +	 DIF水上
 		MACDH4 = "BUYMACD"
-	} else if (inBE(sym) || priceH4 < MA60H4) && DIFDOWNH4 {
-		if !inBE(sym) { //只能空BE
+	} else if (inBTC(sym) || priceH4 < MA60H4) && DIFDOWNH4 {
+		if !inBTC(sym) { //只能空BTC
 			return types.CoinIndicator{}, false
 		}
 		if sym != "" {
@@ -496,21 +496,9 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 
 	//7秒获K
 	time.Sleep(7 * time.Second)
-	if len(newSymbols) == 0 {
-		progressLogger.Println("新币合约启动失败")
-	}
-	if len(topGainers) == 0 {
-		progressLogger.Println("涨幅榜启动失败")
-	}
-	// 1) 获取候选（和你原来代码保持一致）
-	CGTopGainers, err := utils.GetCGTopGainers()
-	if err != nil {
-		progressLogger.Printf("get CG topgainers err: %v\n", err)
-	}
+
 	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols,
-		utils.VolumeCMCCSlip(ticker24h, newSymbols),
-		utils.VolumeCMCCSlip(ticker24h, topGainers),
-		utils.VolumeCMCCSlip(ticker24h, CGTopGainers),
+		[]string{""}, []string{""}, []string{""},
 	)
 	// 并发准备
 	var (
@@ -606,10 +594,10 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if (inBE(sym) || priceD3 > MA60D3) && DIFUPD3 { //MA60	 +	 DIF水上
+	if (inBTC(sym) || priceD3 > MA60D3) && DIFUPD3 { //MA60	 +	 DIF水上
 		MACDD3 = "BUYMACD"
-	} else if (inBE(sym) || priceD3 < MA60D3) && DIFDOWND3 {
-		if !inBE(sym) { //只能空BE
+	} else if (inBTC(sym) || priceD3 < MA60D3) && DIFDOWND3 {
+		if !inBTC(sym) { //只能空BTC
 			return types.CoinIndicator{}, false
 		}
 		MACDD3 = "SELLMACD"
@@ -754,8 +742,8 @@ func latestMessagesLongHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
 }
-func inBE(sym string) bool {
-	for _, s := range BE {
+func inBTC(sym string) bool {
+	for _, s := range BTC {
 		if sym == s {
 			return true
 		}
