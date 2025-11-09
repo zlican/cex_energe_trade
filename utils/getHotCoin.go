@@ -172,69 +172,75 @@ func GetHotCoins(ticker24h []Ticker24h, slipCoin, banSymbols, newSymbols, topGai
 		}
 
 		// 确保新币合约存在
-		for _, mustHave := range newSymbols {
-			//移除BAN标的
-			banNow := false
-			for _, ban := range banSymbols {
-				if ban == mustHave {
-					banNow = true
+		if len(newSymbols) != 0 {
+			for _, mustHave := range newSymbols {
+				//移除BAN标的
+				banNow := false
+				for _, ban := range banSymbols {
+					if ban == mustHave {
+						banNow = true
+					}
 				}
-			}
-			if banNow {
-				continue
-			}
+				if banNow {
+					continue
+				}
 
-			if _, exists := symbolSet[mustHave]; !exists {
-				candidates = append(candidates, types.Candidate{
-					Symbol:    mustHave,
-					RawSymbol: mustHave + "_UMCBL",
-					Volume24h: 0.0,
-				})
-				symbolSet[mustHave] = struct{}{}
+				if _, exists := symbolSet[mustHave]; !exists {
+					candidates = append(candidates, types.Candidate{
+						Symbol:    mustHave,
+						RawSymbol: mustHave + "_UMCBL",
+						Volume24h: 0.0,
+					})
+					symbolSet[mustHave] = struct{}{}
+				}
 			}
 		}
 
 		// 确保涨幅榜存在
-		for _, mustHave := range topGainers {
-			//移除BAN标的
-			banNow := false
-			for _, ban := range banSymbols {
-				if ban == mustHave {
-					banNow = true
+		if len(topGainers) != 0 {
+			for _, mustHave := range topGainers {
+				//移除BAN标的
+				banNow := false
+				for _, ban := range banSymbols {
+					if ban == mustHave {
+						banNow = true
+					}
 				}
-			}
-			if banNow {
-				continue
-			}
-			if _, exists := symbolSet[mustHave]; !exists {
-				candidates = append(candidates, types.Candidate{
-					Symbol:    mustHave,
-					RawSymbol: mustHave + "_UMCBL",
-					Volume24h: 0.0,
-				})
-				symbolSet[mustHave] = struct{}{}
+				if banNow {
+					continue
+				}
+				if _, exists := symbolSet[mustHave]; !exists {
+					candidates = append(candidates, types.Candidate{
+						Symbol:    mustHave,
+						RawSymbol: mustHave + "_UMCBL",
+						Volume24h: 0.0,
+					})
+					symbolSet[mustHave] = struct{}{}
+				}
 			}
 		}
 
 		// 确保CG涨幅榜存在
-		for _, mustHave := range CGTopGainers {
-			//移除BAN标的
-			banNow := false
-			for _, ban := range banSymbols {
-				if ban == mustHave {
-					banNow = true
+		if len(CGTopGainers) != 0 {
+			for _, mustHave := range CGTopGainers {
+				//移除BAN标的
+				banNow := false
+				for _, ban := range banSymbols {
+					if ban == mustHave {
+						banNow = true
+					}
 				}
-			}
-			if banNow {
-				continue
-			}
-			if _, exists := symbolSet[mustHave]; !exists {
-				candidates = append(candidates, types.Candidate{
-					Symbol:    mustHave,
-					RawSymbol: mustHave + "_UMCBL",
-					Volume24h: 0.0,
-				})
-				symbolSet[mustHave] = struct{}{}
+				if banNow {
+					continue
+				}
+				if _, exists := symbolSet[mustHave]; !exists {
+					candidates = append(candidates, types.Candidate{
+						Symbol:    mustHave,
+						RawSymbol: mustHave + "_UMCBL",
+						Volume24h: 0.0,
+					})
+					symbolSet[mustHave] = struct{}{}
+				}
 			}
 		}
 

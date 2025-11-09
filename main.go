@@ -498,7 +498,7 @@ func runScanMIDOnce(client *futures.Client, maxWorkers int64, wait_sucess_token,
 	time.Sleep(7 * time.Second)
 
 	candidates, _ := utils.GetHotCoins(ticker24h, slipCoinNo, banSymbols,
-		[]string{""}, []string{""}, []string{""},
+		[]string{}, []string{}, []string{},
 	)
 	// 并发准备
 	var (
