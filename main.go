@@ -380,10 +380,10 @@ func analyseSymbolForSignal(client *futures.Client, c types.Candidate) (types.Co
 	DIFUPH4 := utils.IsDIFUP(closesH4, 6, 13, 5)
 	DIFDOWNH4 := utils.IsDIFDOWN(closesH4, 6, 13, 5)
 
-	MACDH4 := "RANGE"                                //环境
-	if (inBTC(sym) || priceH4 > MA60H4) && DIFUPH4 { //MA60	 +	 DIF水上
+	MACDH4 := "RANGE"                //环境
+	if priceH4 > MA60H4 && DIFUPH4 { //MA60	 +	 DIF水上
 		MACDH4 = "BUYMACD"
-	} else if (inBTC(sym) || priceH4 < MA60H4) && DIFDOWNH4 {
+	} else if priceH4 < MA60H4 && DIFDOWNH4 {
 		if !inBTC(sym) { //只能空BTC
 			return types.CoinIndicator{}, false
 		}
@@ -594,9 +594,9 @@ func analyseSymbolMIDForSignal(client *futures.Client, c types.Candidate) (types
 	DIFDOWND3 := utils.IsDIFDOWN(closesD3, 6, 13, 5)
 
 	MACDD3 := "RANGE"
-	if (inBTC(sym) || priceD3 > MA60D3) && DIFUPD3 { //MA60	 +	 DIF水上
+	if priceD3 > MA60D3 && DIFUPD3 { //MA60	 +	 DIF水上
 		MACDD3 = "BUYMACD"
-	} else if (inBTC(sym) || priceD3 < MA60D3) && DIFDOWND3 {
+	} else if priceD3 < MA60D3 && DIFDOWND3 {
 		if !inBTC(sym) { //只能空BTC
 			return types.CoinIndicator{}, false
 		}
